@@ -1,0 +1,26 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "format current",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "zig build run -- format ${file}",
+            "args": []
+        },
+        {
+            "name": "minify current",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "zig build run -- minify ${file}",
+            "args": []
+        },
+        {
+            "name": "validate current",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "zig build run -- validate ${file}",
+            "args": []
+        }
+    ]
+}

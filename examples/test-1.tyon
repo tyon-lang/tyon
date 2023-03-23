@@ -1,0 +1,29 @@
+; simple test
+
+first First ; first name
+last Last ; last name
+age 42 ; number
+
+vals [1 2 3] ; list
+
+key ; key comment
+value ; value comment
+
+k ; key
+v
+k2 v2
+
+map (
+	a 1
+	b ; hi key
+	2 ; hi value
+
+	c 3 ; neat
+)
+
+(/person first middle last)
+
+people /person [
+	(a b c)
+	(d e f)
+]
