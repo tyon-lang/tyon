@@ -2,6 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 const err = @import("error.zig");
+const Token = @import("lexer.zig").Token;
 
 const NodeType = enum {
     file,
@@ -58,61 +59,61 @@ pub const Node = struct {
         return new;
     }
 
-    pub fn List(alloc: Allocator, line: usize, col: usize) *Node {
+    pub fn List(alloc: Allocator, token: Token) *Node {
         const new = alloc.create(Node) catch {
             err.printExit("Could not allocate memory for node.", .{}, 1);
         };
         new.* = .{
             .as = .{ .list = NodeList.init() },
-            .start_line = line,
-            .start_column = col,
-            .end_line = line,
-            .end_column = col,
+            .start_line = token.start_line,
+            .start_column = token.start_column,
+            .end_line = token.end_line,
+            .end_column = token.end_column,
             .next = null,
         };
         return new;
     }
 
-    pub fn Map(alloc: Allocator, line: usize, col: usize) *Node {
+    pub fn Map(alloc: Allocator, token: Token) *Node {
         const new = alloc.create(Node) catch {
             err.printExit("Could not allocate memory for node.", .{}, 1);
         };
         new.* = .{
             .as = .{ .map = NodeList.init() },
-            .start_line = line,
-            .start_column = col,
-            .end_line = line,
-            .end_column = col,
+            .start_line = token.start_line,
+            .start_column = token.start_column,
+            .end_line = token.end_line,
+            .end_column = token.end_column,
             .next = null,
         };
         return new;
     }
 
-    pub fn String(alloc: Allocator, val: []const u8, line: usize, col: usize) *Node {
+    pub fn String(alloc: Allocator, token: Token) *Node {
         const new = alloc.create(Node) catch {
             err.printExit("Could not allocate memory for node.", .{}, 1);
         };
         new.* = .{
-            .as = .{ .string = val },
-            .start_line = line,
-            .start_column = col,
-            .end_line = line,
-            .end_column = col + val.len,
+            .as = .{ .string = token.value },
+            .start_line = token.start_line,
+            .start_column = token.start_column,
+            .end_line = token.end_line,
+            .end_column = token.end_column,
             .next = null,
         };
         return new;
     }
 
-    pub fn Value(alloc: Allocator, val: []const u8, line: usize, col: usize) *Node {
+    pub fn Value(alloc: Allocator, token: Token) *Node {
         const new = alloc.create(Node) catch {
             err.printExit("Could not allocate memory for node.", .{}, 1);
         };
         new.* = .{
-            .as = .{ .value = val },
-            .start_line = line,
-            .start_column = col,
-            .end_line = line,
-            .end_column = col + val.len,
+            .as = .{ .value = token.value },
+            .start_line = token.start_line,
+            .start_column = token.start_column,
+            .end_line = token.end_line,
+            .end_column = token.end_column,
             .next = null,
         };
         return new;

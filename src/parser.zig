@@ -71,9 +71,9 @@ pub const Parser = struct {
 
     fn errorAt(token: Token, message: []const u8) void {
         if (token.type == .eof) {
-            err.errorAt("at end: {s}", token.line, token.column, token.value.len, .{message}, 65);
+            err.errorAt("at end: {s}", token.start_line, token.start_column, token.end_line, token.end_column, .{message}, 65);
         } else {
-            err.errorAt("at '{s}': {s}", token.line, token.column, token.value.len, .{ token.value, message }, 65);
+            err.errorAt("at '{s}': {s}", token.start_line, token.start_column, token.end_line, token.end_column, .{ token.value, message }, 65);
         }
     }
 
@@ -103,7 +103,7 @@ pub const Parser = struct {
             if (self.current.type != .comment) break;
 
             if (self.include_comments) {
-                self.addComment(self.current.value, self.current.line);
+                self.addComment(self.current.value, self.current.start_line);
             }
         }
     }
@@ -140,9 +140,9 @@ pub const Parser = struct {
 
     fn key(self: *Parser, parent: *NodeList) void {
         if (self.match(.string)) {
-            parent.add(Node.String(self.allocator, self.previous.value, self.previous.line, self.previous.column));
+            parent.add(Node.String(self.allocator, self.previous));
         } else if (self.match(.value)) {
-            parent.add(Node.Value(self.allocator, self.previous.value, self.previous.line, self.previous.column));
+            parent.add(Node.Value(self.allocator, self.previous));
         } else {
             self.errorAtCurrent("Only strings and values can be used as a key");
         }
@@ -163,9 +163,9 @@ pub const Parser = struct {
         } else if (self.match(.left_bracket)) {
             // todo - list
         } else if (self.match(.string)) {
-            parent.add(Node.String(self.allocator, self.previous.value, self.previous.line, self.previous.column));
+            parent.add(Node.String(self.allocator, self.previous));
         } else if (self.match(.value)) {
-            parent.add(Node.Value(self.allocator, self.previous.value, self.previous.line, self.previous.column));
+            parent.add(Node.Value(self.allocator, self.previous));
         } else {
             self.errorAtCurrent("Not a valid value");
         }

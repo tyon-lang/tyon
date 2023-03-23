@@ -17,8 +17,10 @@ pub const TokenType = enum {
 pub const Token = struct {
     type: TokenType,
     value: []const u8,
-    line: usize,
-    column: usize,
+    start_line: usize,
+    start_column: usize,
+    end_line: usize,
+    end_column: usize,
 };
 
 pub const Lexer = struct {
@@ -66,8 +68,21 @@ pub const Lexer = struct {
         return .{
             .type = token_type,
             .value = self.source[self.start_index..self.current_index],
-            .line = self.line,
-            .column = self.column + self.start_index - self.current_index,
+            .start_line = self.line,
+            .start_column = self.column + self.start_index - self.current_index,
+            .end_line = self.line,
+            .end_column = self.column,
+        };
+    }
+
+    fn multilineToken(self: *Lexer, token_type: TokenType, s_line: usize, s_col: usize) Token {
+        return .{
+            .type = token_type,
+            .value = self.source[self.start_index..self.current_index],
+            .start_line = s_line,
+            .start_column = s_col,
+            .end_line = self.line,
+            .end_column = self.column,
         };
     }
 
@@ -89,24 +104,35 @@ pub const Lexer = struct {
         // discard opening quote
         self.resetLength();
 
-        while (self.peek(0) != '"' and self.peek(0) != '\n' and !self.isAtEnd()) {
-            if (self.peek(0) == '\\' and self.peek(1) != 0) self.advance();
+        const start_line = self.line;
+        const start_col = self.column;
+
+        while (!self.isAtEnd()) {
+            if (self.peek(0) == '\n') {
+                self.incrLine();
+            } else if (self.peek(0) == '"') {
+                if (self.peek(1) == '"') {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
             self.advance();
         }
 
-        if (self.isAtEnd() or self.peek(0) != '"') {
-            // the extra 1 in column and size is to include the starting "
+        if (self.isAtEnd()) {
             err.errorAt(
                 "Unterminated string",
+                start_line,
+                start_col - 1,
                 self.line,
-                self.column + self.start_index - self.current_index - 1,
-                self.current_index + 1 - self.start_index,
+                self.column,
                 .{},
                 65,
             );
         }
 
-        const tok = self.token(.string);
+        const tok = self.multilineToken(.string, start_line, start_col);
 
         // discard closing quote
         self.advance();
