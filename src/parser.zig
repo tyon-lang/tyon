@@ -36,7 +36,7 @@ const ParseResult = struct {
         std.debug.print("comments\n", .{});
         var current = self.comments;
         while (current) |cur| : (current = cur.next) {
-            std.debug.print("  [{d}] '{s}'\n", .{ cur.line, cur.value });
+            std.debug.print("  [{d}] '{s}'\n", .{ cur.line + 1, cur.value });
         }
     }
 };
@@ -77,14 +77,6 @@ pub const Parser = struct {
         }
     }
 
-    fn error_(self: *Parser, message: []const u8) void {
-        errorAt(self.previous, message);
-    }
-
-    fn errorAtCurrent(self: *Parser, message: []const u8) void {
-        errorAt(self.current, message);
-    }
-
     fn addComment(self: *Parser, val: []const u8, line: usize) void {
         const comment = Comment.init(self.allocator, val, line);
         if (self.last_comment) |l| {
@@ -120,117 +112,140 @@ pub const Parser = struct {
 
     fn consume(self: *Parser, expected: TokenType, message: []const u8) void {
         if (!self.check(expected)) {
-            self.errorAtCurrent(message);
+            errorAt(self.current, message);
         }
         self.advance();
     }
 
-    fn fileItem(self: *Parser, parent: *NodeList) void {
-        // typedef
-        if (self.match(.left_paren)) {
-            self.typedef(parent);
-            return;
-        }
+    pub fn parse(self: *Parser) ParseResult {
+        const file = Node.File(self.allocator);
 
-        if (!self.match(.eof)) {
-            self.key(parent);
-            self.value(parent);
+        self.parseFile(file.asFile());
+
+        return .{ .root = file, .comments = self.first_comment };
+    }
+
+    fn parseFile(self: *Parser, parent: *NodeList) void {
+        while (!self.match(.eof)) {
+            if (self.match(.left_paren)) {
+                self.parseTypedef(parent);
+            } else {
+                self.parseKey(parent);
+                self.parseValue(parent, false);
+            }
         }
     }
 
-    fn key(self: *Parser, parent: *NodeList) void {
+    fn parseKey(self: *Parser, parent: *NodeList) void {
         if (self.match(.string)) {
             parent.add(Node.String(self.allocator, self.previous));
         } else if (self.match(.value)) {
             parent.add(Node.Value(self.allocator, self.previous));
         } else {
-            self.errorAtCurrent("Only strings and values can be used as a key");
+            errorAt(self.current, "Only strings and values can be used as a key");
         }
     }
 
-    fn typedef(self: *Parser, parent: *NodeList) void {
-        self.consume(.slash, "A map cannot be used as a key");
+    fn parseList(self: *Parser, list: *Node, typed: bool) void {
+        while (self.current.type != .right_bracket) {
+            self.parseValue(list.asList(), typed);
+        }
+        self.consume(.right_bracket, "Missing ]");
 
-        while (self.current.type != .right_paren and self.current.type != .eof) {
-            self.key(parent);
+        list.end_line = self.previous.end_line;
+        list.end_column = self.previous.end_column;
+    }
+
+    fn parseMap(self: *Parser, map: *Node, typed: bool) void {
+        while (self.current.type != .right_paren) {
+            if (!typed) self.parseKey(map.asMap());
+            self.parseValue(map.asMap(), false);
         }
         self.consume(.right_paren, "Missing )");
+
+        map.end_line = self.previous.end_line;
+        map.end_column = self.previous.end_column;
     }
 
-    fn value(self: *Parser, parent: *NodeList) void {
+    fn parseTyped(self: *Parser, parent: *NodeList) void {
+        const typed = Node.Typed(self.allocator, self.previous);
+        parent.add(typed);
+
+        var is_typed = true;
+
+        // type name or inline type
         if (self.match(.left_paren)) {
-            // todo - map
+            const inline_type = Node.Map(self.allocator, self.previous);
+            typed.asTyped().type = inline_type;
+
+            while (self.current.type != .right_paren) {
+                self.parseKey(inline_type.asMap());
+            }
+            self.consume(.right_paren, "Missing )");
+
+            inline_type.end_line = self.previous.end_line;
+            inline_type.end_column = self.previous.end_column;
+        } else if (self.match(.string)) {
+            typed.asTyped().type = Node.String(self.allocator, self.previous);
+        } else if (self.match(.value)) {
+            typed.asTyped().type = Node.Value(self.allocator, self.previous);
+        } else if (self.match(.discard)) {
+            typed.asTyped().type = Node.Discard(self.allocator, self.previous);
+            is_typed = false;
+        } else {
+            errorAt(self.current, "Type must be a string, value, or inline type");
+        }
+
+        // value
+        if (self.match(.left_paren)) {
+            const map = Node.Map(self.allocator, self.previous);
+            typed.asTyped().node = map;
+            self.parseMap(map, is_typed);
         } else if (self.match(.left_bracket)) {
-            // todo - list
+            const list = Node.List(self.allocator, self.previous);
+            typed.asTyped().node = list;
+            self.parseList(list, is_typed);
+        } else {
+            errorAt(self.current, "Types can only be applied to lists and maps");
+        }
+
+        typed.end_line = self.previous.end_line;
+        typed.end_column = self.previous.end_column;
+    }
+
+    fn parseTypedef(self: *Parser, parent: *NodeList) void {
+        const typedef = Node.Typedef(self.allocator, self.previous);
+        parent.add(typedef);
+
+        self.consume(.slash, "A map cannot be used as a key");
+        while (self.current.type != .right_paren) {
+            self.parseKey(typedef.asTypedef());
+        }
+        self.consume(.right_paren, "Missing )");
+
+        typedef.end_line = self.previous.end_line;
+        typedef.end_column = self.previous.end_column;
+    }
+
+    fn parseValue(self: *Parser, parent: *NodeList, typed: bool) void {
+        if (self.match(.left_paren)) {
+            const map = Node.Map(self.allocator, self.previous);
+            parent.add(map);
+            self.parseMap(map, typed);
+        } else if (self.match(.left_bracket)) {
+            const list = Node.List(self.allocator, self.previous);
+            parent.add(list);
+            self.parseList(list, typed);
         } else if (self.match(.string)) {
             parent.add(Node.String(self.allocator, self.previous));
         } else if (self.match(.value)) {
             parent.add(Node.Value(self.allocator, self.previous));
+        } else if (self.match(.discard)) {
+            parent.add(Node.Discard(self.allocator, self.previous));
+        } else if (self.match(.slash)) {
+            self.parseTyped(parent);
         } else {
-            self.errorAtCurrent("Not a valid value");
+            errorAt(self.current, "Not a valid value");
         }
     }
-
-    pub fn parse(self: *Parser) ParseResult {
-        var file = Node.File(self.allocator);
-
-        while (!self.match(.eof)) {
-            self.fileItem(file.asFile());
-        }
-
-        return .{ .root = file, .comments = self.first_comment };
-    }
-
-    // fn parseHelper(self: *Parser, parent_node: *Node, parent: *ArrayList(Node)) !void {
-    //     while (true) {
-    //         const tok = self.lexer.lexToken();
-    //         switch (tok.type) {
-    //             .left_paren => {
-    //                 var map = Node.Map(self.allocator, tok.line, tok.column);
-    //                 try self.parseHelper(&map, map.asMap());
-    //                 try parent.append(map);
-    //             },
-    //             .right_paren => {
-    //                 if (!parent_node.isMap()) {
-    //                     // todo - error
-    //                 }
-    //                 parent_node.end_line = tok.line;
-    //                 parent_node.end_column = tok.column + tok.value.len;
-    //                 return;
-    //             },
-    //             .left_bracket => {
-    //                 var list = Node.List(self.allocator, tok.line, tok.column);
-    //                 try self.parseHelper(&list, list.asList());
-    //                 try parent.append(list);
-    //             },
-    //             .right_bracket => {
-    //                 if (!parent_node.isList()) {
-    //                     // todo - error
-    //                 }
-    //                 parent_node.end_line = tok.line;
-    //                 parent_node.end_column = tok.column + tok.value.len;
-    //                 return;
-    //             },
-    //             .slash => {
-    //                 // todo - types
-    //             },
-    //             .comment => {
-    //                 const val = self.copyString(tok.value);
-    //                 const node = Node.Comment(val, tok.line, tok.column);
-    //                 try parent.append(node);
-    //             },
-    //             .string => {
-    //                 const val = self.copyString(tok.value);
-    //                 const node = Node.String(val, tok.line, tok.column);
-    //                 try parent.append(node);
-    //             },
-    //             .value => {
-    //                 const val = self.copyString(tok.value);
-    //                 const node = Node.Value(val, tok.line, tok.column);
-    //                 try parent.append(node);
-    //             },
-    //             else => return,
-    //         }
-    //     }
-    // }
 };

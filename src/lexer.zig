@@ -9,6 +9,7 @@ pub const TokenType = enum {
     right_bracket,
     slash,
     comment,
+    discard,
     string,
     value,
     eof,
@@ -143,7 +144,8 @@ pub const Lexer = struct {
 
     fn value(self: *Lexer) Token {
         while (isValue(self.peek(0))) self.advance();
-        return self.token(.value);
+        const val = self.source[self.start_index..self.current_index];
+        return self.token(if (val.len == 1 and val[0] == '_') .discard else .value);
     }
 
     pub fn lexToken(self: *Lexer) Token {
