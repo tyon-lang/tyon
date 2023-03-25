@@ -1,6 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+const err = @import("error.zig");
 const format = @import("format.zig");
 const Parser = @import("parser.zig").Parser;
 
@@ -86,7 +87,23 @@ fn minifyFile(alloc: Allocator, path: []const u8) !void {
     defer alloc.free(source);
 
     file.close();
-    file = try std.fs.cwd().createFile(path, .{});
+
+    var out_path: []u8 = undefined;
+    const index = std.mem.lastIndexOfScalar(u8, path, '.');
+    if (index) |i| {
+        const strings = [_][]const u8{ path[0..i], ".min", path[i..] };
+        out_path = std.mem.concat(alloc, u8, &strings) catch {
+            err.printExit("Could not allocate memory for path.", .{}, 1);
+        };
+    } else {
+        const strings = [_][]const u8{ path, ".min" };
+        out_path = std.mem.concat(alloc, u8, &strings) catch {
+            err.printExit("Could not allocate memory for path.", .{}, 1);
+        };
+    }
+    defer alloc.free(out_path);
+
+    file = try std.fs.cwd().createFile(out_path, .{});
     defer file.close();
 
     var buffered_writer = std.io.bufferedWriter(file.writer());
