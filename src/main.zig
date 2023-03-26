@@ -3,6 +3,7 @@ const Allocator = std.mem.Allocator;
 
 const err = @import("error.zig");
 const format = @import("format.zig");
+const minify = @import("minify.zig");
 const Parser = @import("parser.zig").Parser;
 
 const version = std.SemanticVersion{ .major = 0, .minor = 1, .patch = 0, .pre = "dev.4" };
@@ -82,11 +83,10 @@ fn formatFile(alloc: Allocator, path: []const u8) !void {
 
 fn minifyFile(alloc: Allocator, path: []const u8) !void {
     var file = try std.fs.cwd().openFile(path, .{});
+    defer file.close();
 
     const source = try file.readToEndAlloc(alloc, std.math.maxInt(usize));
     defer alloc.free(source);
-
-    file.close();
 
     var out_path: []u8 = undefined;
     const index = std.mem.lastIndexOfScalar(u8, path, '.');
@@ -103,13 +103,17 @@ fn minifyFile(alloc: Allocator, path: []const u8) !void {
     }
     defer alloc.free(out_path);
 
-    file = try std.fs.cwd().createFile(out_path, .{});
-    defer file.close();
+    var out_file = try std.fs.cwd().createFile(out_path, .{});
+    defer out_file.close();
 
-    var buffered_writer = std.io.bufferedWriter(file.writer());
+    var buffered_writer = std.io.bufferedWriter(out_file.writer());
 
-    // todo - minify
+    var parser: Parser = undefined;
+    parser.init(alloc, source, false);
+    defer parser.deinit();
 
+    const result = parser.parse();
+    try minify.minify(buffered_writer.writer(), result.root);
     try buffered_writer.flush();
 }
 
