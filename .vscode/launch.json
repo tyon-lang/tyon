@@ -16,6 +16,13 @@
             "args": []
         },
         {
+            "name": "to json current",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "zig build run -- to json ${file}",
+            "args": []
+        },
+        {
             "name": "validate current",
             "type": "PowerShell",
             "request": "launch",

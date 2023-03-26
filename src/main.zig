@@ -6,7 +6,7 @@ const format = @import("format.zig");
 const minify = @import("minify.zig");
 const Parser = @import("parser.zig").Parser;
 
-const version = std.SemanticVersion{ .major = 0, .minor = 1, .patch = 0, .pre = "dev.4" };
+const version = std.SemanticVersion{ .major = 0, .minor = 1, .patch = 0, .pre = "dev.5" };
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -124,7 +124,25 @@ fn toJson(alloc: Allocator, path: []const u8) !void {
     const source = try file.readToEndAlloc(alloc, std.math.maxInt(usize));
     defer alloc.free(source);
 
+    const strings = [_][]const u8{ path, ".json" };
+    const out_path = std.mem.concat(alloc, u8, &strings) catch {
+        err.printExit("Could not allocate memory for path.", .{}, 1);
+    };
+    defer alloc.free(out_path);
+
+    var out_file = try std.fs.cwd().createFile(out_path, .{});
+    defer out_file.close();
+
+    var buffered_writer = std.io.bufferedWriter(out_file.writer());
+
+    var parser: Parser = undefined;
+    parser.init(alloc, source, false);
+    defer parser.deinit();
+
+    const result = parser.parse();
     // todo - save as json
+    _ = result;
+    try buffered_writer.flush();
 }
 
 fn validateFile(alloc: Allocator, path: []const u8) !void {
@@ -134,7 +152,13 @@ fn validateFile(alloc: Allocator, path: []const u8) !void {
     const source = try file.readToEndAlloc(alloc, std.math.maxInt(usize));
     defer alloc.free(source);
 
+    var parser: Parser = undefined;
+    parser.init(alloc, source, false);
+    defer parser.deinit();
+
+    const result = parser.parse();
     // todo - validate
+    _ = result;
 }
 
 fn printUsage() void {
