@@ -42,7 +42,6 @@ const ParseResult = struct {
 };
 
 pub const Parser = struct {
-    arena: ArenaAllocator,
     allocator: Allocator,
     lexer: Lexer,
     include_comments: bool,
@@ -50,23 +49,36 @@ pub const Parser = struct {
     current: Token,
     previous: Token,
 
+    root: *Node,
     first_comment: ?*Comment,
     last_comment: ?*Comment,
 
-    pub fn init(self: *Parser, alloc: Allocator, source: []const u8, inc_comments: bool) void {
-        self.arena = ArenaAllocator.init(alloc);
-        self.allocator = self.arena.allocator();
-        self.lexer = Lexer.init(source);
-        self.include_comments = inc_comments;
+    pub fn init(alloc: Allocator, source: []const u8, inc_comments: bool) Parser {
+        var new = Parser{
+            .allocator = alloc,
+            .lexer = Lexer.init(source),
+            .include_comments = inc_comments,
 
-        self.first_comment = null;
-        self.last_comment = null;
+            .root = undefined,
+            .current = undefined,
+            .previous = undefined,
 
-        self.advance();
+            .first_comment = null,
+            .last_comment = null,
+        };
+
+        new.advance();
+        return new;
     }
 
     pub fn deinit(self: *Parser) void {
-        self.arena.deinit();
+        self.root.deinit(self.allocator);
+
+        var current = self.first_comment;
+        while (current) |curr| {
+            current = curr.next;
+            self.allocator.destroy(curr);
+        }
     }
 
     fn errorAt(token: Token, message: []const u8) void {
@@ -118,11 +130,11 @@ pub const Parser = struct {
     }
 
     pub fn parse(self: *Parser) ParseResult {
-        const file = Node.File(self.allocator);
+        self.root = Node.File(self.allocator);
 
-        self.parseFile(file.asFile());
+        self.parseFile(self.root.asFile());
 
-        return .{ .root = file, .comments = self.first_comment };
+        return .{ .root = self.root, .comments = self.first_comment };
     }
 
     fn parseFile(self: *Parser, parent: *NodeList) void {

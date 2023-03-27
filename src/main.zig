@@ -6,7 +6,7 @@ const format = @import("format.zig");
 const minify = @import("minify.zig");
 const Parser = @import("parser.zig").Parser;
 
-const version = std.SemanticVersion{ .major = 0, .minor = 1, .patch = 0, .pre = "dev.5" };
+const version = std.SemanticVersion{ .major = 0, .minor = 1, .patch = 0, .pre = "dev.6" };
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -69,8 +69,7 @@ fn formatFile(alloc: Allocator, path: []const u8) !void {
 
     // var buffered_writer = std.io.bufferedWriter(file.writer());
 
-    var parser: Parser = undefined;
-    parser.init(alloc, source, true);
+    var parser = Parser.init(alloc, source, true);
     defer parser.deinit();
 
     const result = parser.parse();
@@ -108,8 +107,7 @@ fn minifyFile(alloc: Allocator, path: []const u8) !void {
 
     var buffered_writer = std.io.bufferedWriter(out_file.writer());
 
-    var parser: Parser = undefined;
-    parser.init(alloc, source, false);
+    var parser = Parser.init(alloc, source, false);
     defer parser.deinit();
 
     const result = parser.parse();
@@ -135,8 +133,7 @@ fn toJson(alloc: Allocator, path: []const u8) !void {
 
     var buffered_writer = std.io.bufferedWriter(out_file.writer());
 
-    var parser: Parser = undefined;
-    parser.init(alloc, source, false);
+    var parser = Parser.init(alloc, source, false);
     defer parser.deinit();
 
     const result = parser.parse();
@@ -152,8 +149,7 @@ fn validateFile(alloc: Allocator, path: []const u8) !void {
     const source = try file.readToEndAlloc(alloc, std.math.maxInt(usize));
     defer alloc.free(source);
 
-    var parser: Parser = undefined;
-    parser.init(alloc, source, false);
+    var parser = Parser.init(alloc, source, false);
     defer parser.deinit();
 
     const result = parser.parse();

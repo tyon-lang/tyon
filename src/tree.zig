@@ -23,6 +23,14 @@ pub const NodeList = struct {
         return .{ .first = null, .last = null };
     }
 
+    pub fn deinit(self: NodeList, alloc: Allocator) void {
+        var current = self.first;
+        while (current) |curr| {
+            current = curr.next;
+            alloc.destroy(curr);
+        }
+    }
+
     pub fn add(self: *NodeList, node: *Node) void {
         if (self.last) |l| {
             l.next = node;
@@ -173,6 +181,21 @@ pub const Node = struct {
             .next = null,
         };
         return new;
+    }
+
+    pub fn deinit(self: *Node, alloc: Allocator) void {
+        switch (self.getType()) {
+            .file => self.asFile().deinit(alloc),
+            .list => self.asList().deinit(alloc),
+            .map => self.asMap().deinit(alloc),
+            .typed => {
+                self.asTyped().type.deinit(alloc);
+                self.asTyped().node.deinit(alloc);
+            },
+            .typedef => self.asTypedef().deinit(alloc),
+            else => {},
+        }
+        alloc.destroy(self);
     }
 
     pub fn getType(self: Node) NodeType {
