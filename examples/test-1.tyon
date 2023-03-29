@@ -21,6 +21,10 @@ map (
 	c (a 1 b 2 c 3) ; neat
 )
 
+true true
+false false
+null null
+
 (/person first middle last)
 
 people /person [

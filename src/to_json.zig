@@ -46,7 +46,7 @@ fn writeKey(writer: anytype, node: *Node) Error!void {
             _ = try writer.write("\"");
         },
         .value => {
-            // todo - parse and check for value patterns
+            // todo - parse and check for value patterns and then always write them as strings
             _ = try writer.write("\"");
             // todo - escape "
             _ = try writer.write(node.asValue());
@@ -118,11 +118,18 @@ fn writeValue(writer: anytype, node: *Node, indent_level: usize) Error!void {
             _ = try writer.write("\"[typed]\"");
         },
         .value => {
-            // todo - parse and check for value patterns
-            _ = try writer.write("\"");
-            // todo - escape "
-            _ = try writer.write(node.asValue());
-            _ = try writer.write("\"");
+            if (std.mem.eql(u8, node.asValue(), "true") or
+                std.mem.eql(u8, node.asValue(), "false") or
+                std.mem.eql(u8, node.asValue(), "null"))
+            {
+                _ = try writer.write(node.asValue());
+            } else {
+                // todo - numbers
+                _ = try writer.write("\"");
+                // todo - escape "
+                _ = try writer.write(node.asValue());
+                _ = try writer.write("\"");
+            }
         },
         else => unreachable,
     }
