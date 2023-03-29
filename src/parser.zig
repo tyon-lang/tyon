@@ -143,7 +143,7 @@ pub const Parser = struct {
                 self.parseTypedef(parent);
             } else {
                 self.parseKey(parent);
-                self.parseValue(parent, false);
+                self.parseValue(parent, false, false);
             }
         }
     }
@@ -160,7 +160,7 @@ pub const Parser = struct {
 
     fn parseList(self: *Parser, list: *Node, typed: bool) void {
         while (self.current.type != .right_bracket) {
-            self.parseValue(list.asList(), typed);
+            self.parseValue(list.asList(), typed, typed);
         }
         self.consume(.right_bracket, "Missing ]");
 
@@ -171,7 +171,7 @@ pub const Parser = struct {
     fn parseMap(self: *Parser, map: *Node, typed: bool) void {
         while (self.current.type != .right_paren) {
             if (!typed) self.parseKey(map.asMap());
-            self.parseValue(map.asMap(), false);
+            self.parseValue(map.asMap(), false, typed);
         }
         self.consume(.right_paren, "Missing )");
 
@@ -239,21 +239,25 @@ pub const Parser = struct {
         typedef.end_column = self.previous.end_column;
     }
 
-    fn parseValue(self: *Parser, parent: *NodeList, typed: bool) void {
+    fn parseValue(self: *Parser, parent: *NodeList, typed_children: bool, allow_discard: bool) void {
         if (self.match(.left_paren)) {
             const map = Node.Map(self.allocator, self.previous);
             parent.add(map);
-            self.parseMap(map, typed);
+            self.parseMap(map, typed_children);
         } else if (self.match(.left_bracket)) {
             const list = Node.List(self.allocator, self.previous);
             parent.add(list);
-            self.parseList(list, typed);
+            self.parseList(list, typed_children);
         } else if (self.match(.string)) {
             parent.add(Node.String(self.allocator, self.previous));
         } else if (self.match(.value)) {
             parent.add(Node.Value(self.allocator, self.previous));
         } else if (self.match(.discard)) {
-            parent.add(Node.Discard(self.allocator, self.previous));
+            if (allow_discard) {
+                parent.add(Node.Discard(self.allocator, self.previous));
+            } else {
+                errorAt(self.previous, "A discard is only valid on typed maps");
+            }
         } else if (self.match(.slash)) {
             self.parseTyped(parent);
         } else {

@@ -3,10 +3,10 @@ const Allocator = std.mem.Allocator;
 
 const err = @import("error.zig");
 const format = @import("format.zig");
-const minify = @import("minify.zig");
 const Parser = @import("parser.zig").Parser;
+const to_json = @import("to_json.zig");
 
-const version = std.SemanticVersion{ .major = 0, .minor = 1, .patch = 0, .pre = "dev.6" };
+const version = std.SemanticVersion{ .major = 0, .minor = 1, .patch = 0, .pre = "dev.7" };
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -21,28 +21,28 @@ pub fn main() !void {
     while (args.next()) |arg| try arg_list.append(arg);
 
     var valid = false;
-    if (arg_list.items.len >= 3 and std.mem.eql(u8, arg_list.items[1], "format")) {
+    if (arg_list.items.len >= 3 and std.mem.eql(u8, arg_list.items[1], "debug")) {
         valid = true;
         for (arg_list.items[2..]) |file| {
-            try formatFile(alloc, file);
+            try fileDebug(alloc, file);
+        }
+    } else if (arg_list.items.len >= 3 and std.mem.eql(u8, arg_list.items[1], "format")) {
+        valid = true;
+        for (arg_list.items[2..]) |file| {
+            try fileFormat(alloc, file);
         }
     } else if (arg_list.items.len >= 2 and std.mem.eql(u8, arg_list.items[1], "help")) {
         valid = true;
         printUsage();
-    } else if (arg_list.items.len >= 3 and std.mem.eql(u8, arg_list.items[1], "minify")) {
+    } else if (arg_list.items.len >= 3 and std.mem.eql(u8, arg_list.items[1], "to-json")) {
         valid = true;
         for (arg_list.items[2..]) |file| {
-            try minifyFile(alloc, file);
-        }
-    } else if (arg_list.items.len >= 4 and std.mem.eql(u8, arg_list.items[1], "to") and std.mem.eql(u8, arg_list.items[2], "json")) {
-        valid = true;
-        for (arg_list.items[3..]) |file| {
-            try toJson(alloc, file);
+            try fileToJson(alloc, file);
         }
     } else if (arg_list.items.len >= 3 and std.mem.eql(u8, arg_list.items[1], "validate")) {
         valid = true;
         for (arg_list.items[2..]) |file| {
-            try validateFile(alloc, file);
+            try fileValidate(alloc, file);
         }
     } else if (arg_list.items.len >= 2 and std.mem.eql(u8, arg_list.items[1], "version")) {
         valid = true;
@@ -56,7 +56,21 @@ pub fn main() !void {
     }
 }
 
-fn formatFile(alloc: Allocator, path: []const u8) !void {
+fn fileDebug(alloc: Allocator, path: []const u8) !void {
+    var file = try std.fs.cwd().openFile(path, .{});
+    defer file.close();
+
+    const source = try file.readToEndAlloc(alloc, std.math.maxInt(usize));
+    defer alloc.free(source);
+
+    var parser = Parser.init(alloc, source, true);
+    defer parser.deinit();
+
+    const result = parser.parse();
+    result.print();
+}
+
+fn fileFormat(alloc: Allocator, path: []const u8) !void {
     var file = try std.fs.cwd().openFile(path, .{});
 
     const source = try file.readToEndAlloc(alloc, std.math.maxInt(usize));
@@ -80,42 +94,7 @@ fn formatFile(alloc: Allocator, path: []const u8) !void {
     // try buffered_writer.flush();
 }
 
-fn minifyFile(alloc: Allocator, path: []const u8) !void {
-    var file = try std.fs.cwd().openFile(path, .{});
-    defer file.close();
-
-    const source = try file.readToEndAlloc(alloc, std.math.maxInt(usize));
-    defer alloc.free(source);
-
-    var out_path: []u8 = undefined;
-    const index = std.mem.lastIndexOfScalar(u8, path, '.');
-    if (index) |i| {
-        const strings = [_][]const u8{ path[0..i], ".min", path[i..] };
-        out_path = std.mem.concat(alloc, u8, &strings) catch {
-            err.printExit("Could not allocate memory for path.", .{}, 1);
-        };
-    } else {
-        const strings = [_][]const u8{ path, ".min" };
-        out_path = std.mem.concat(alloc, u8, &strings) catch {
-            err.printExit("Could not allocate memory for path.", .{}, 1);
-        };
-    }
-    defer alloc.free(out_path);
-
-    var out_file = try std.fs.cwd().createFile(out_path, .{});
-    defer out_file.close();
-
-    var buffered_writer = std.io.bufferedWriter(out_file.writer());
-
-    var parser = Parser.init(alloc, source, false);
-    defer parser.deinit();
-
-    const result = parser.parse();
-    try minify.minify(buffered_writer.writer(), result.root);
-    try buffered_writer.flush();
-}
-
-fn toJson(alloc: Allocator, path: []const u8) !void {
+fn fileToJson(alloc: Allocator, path: []const u8) !void {
     var file = try std.fs.cwd().openFile(path, .{});
     defer file.close();
 
@@ -137,12 +116,11 @@ fn toJson(alloc: Allocator, path: []const u8) !void {
     defer parser.deinit();
 
     const result = parser.parse();
-    // todo - save as json
-    _ = result;
+    try to_json.toJson(buffered_writer.writer(), result.root);
     try buffered_writer.flush();
 }
 
-fn validateFile(alloc: Allocator, path: []const u8) !void {
+fn fileValidate(alloc: Allocator, path: []const u8) !void {
     var file = try std.fs.cwd().openFile(path, .{});
     defer file.close();
 
@@ -163,10 +141,10 @@ fn printUsage() void {
         \\
         \\Commands:
         \\  format <files>      Format specified files
-        \\  minify <files>      Minify specified files
+        \\  to-json <files>     Save files as JSON
         \\  validate <files>    Validate specified files
         \\
-        \\  to json <files>     Save files as JSON
+        \\  debug <files>       Debug the specified files
         \\
         \\  help                Print this help and exit
         \\  version             Print version and exit

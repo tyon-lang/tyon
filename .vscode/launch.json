@@ -2,6 +2,13 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "debug current",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "zig build run -- debug ${file}",
+            "args": []
+        },
+        {
             "name": "format current",
             "type": "PowerShell",
             "request": "launch",
@@ -9,17 +16,10 @@
             "args": []
         },
         {
-            "name": "minify current",
+            "name": "to-json current",
             "type": "PowerShell",
             "request": "launch",
-            "script": "zig build run -- minify ${file}",
-            "args": []
-        },
-        {
-            "name": "to json current",
-            "type": "PowerShell",
-            "request": "launch",
-            "script": "zig build run -- to json ${file}",
+            "script": "zig build run -- to-json ${file}",
             "args": []
         },
         {

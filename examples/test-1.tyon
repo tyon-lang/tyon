@@ -4,7 +4,7 @@ first First ; first name
 last Last ; last name
 age 42 ; number
 
-vals [1 2 3] ; list
+vals [1 2 [3 4 [5 6] 7 8] 9] ; list
 
 key ; key comment
 value ; value comment
@@ -18,7 +18,7 @@ map (
 	b ; hi key
 	2 ; hi value
 
-	c 3 ; neat
+	c (a 1 b 2 c 3) ; neat
 )
 
 (/person first middle last)
@@ -26,6 +26,7 @@ map (
 people /person [
 	(a b c)
 	(d e f)
+	/_(a 1 b 2)
 ]
 
 points /(x y z) [
