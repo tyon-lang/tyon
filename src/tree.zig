@@ -41,7 +41,7 @@ pub const NodeList = struct {
     }
 };
 
-const TypedNode = struct {
+pub const TypedNode = struct {
     type: *Node,
     node: *Node,
 };

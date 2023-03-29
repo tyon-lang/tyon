@@ -8,175 +8,227 @@ const TypeMap = std.StringHashMap(*Node);
 const err = @import("error.zig");
 const Node = @import("tree.zig").Node;
 const NodeList = @import("tree.zig").NodeList;
+const TypedNode = @import("tree.zig").TypedNode;
 
-pub fn toJson(alloc: Allocator, writer: anytype, node: *Node) !void {
-    var strings = StrList.init(alloc);
-    defer strings.deinit();
+pub const ToJson = struct {
+    allocator: Allocator,
+    strings: StrList,
+    types: TypeMap,
 
-    var types = TypeMap.init(alloc);
-    defer types.deinit();
-
-    try writeFile(writer, node.asFile(), &strings, &types);
-
-    for (strings.items) |string| {
-        alloc.free(string);
+    pub fn convert(alloc: Allocator, writer: anytype, node: *Node) !void {
+        var converter = init(alloc);
+        defer converter.deinit();
+        try converter.writeFile(writer, node.asFile());
     }
-}
 
-fn getKey(node: *Node, strings: *StrList) []const u8 {
-    _ = strings;
-
-    switch (node.getType()) {
-        .string => {
-            // todo - unescape "
-            return node.asString();
-        },
-        .value => return node.asValue(),
-        else => unreachable,
+    fn init(alloc: Allocator) ToJson {
+        return .{
+            .allocator = alloc,
+            .strings = StrList.init(alloc),
+            .types = TypeMap.init(alloc),
+        };
     }
-}
 
-fn loadTypedef(typedef: *NodeList, strings: *StrList, types: *TypeMap) !void {
-    if (typedef.first) |name| {
-        if (name.next) |first_val| {
-            const key = getKey(name, strings);
-            try types.put(key, first_val);
-        } else {
-            err.printExit("Typedef must have at least one value", .{}, 65);
+    fn deinit(self: *ToJson) void {
+        for (self.strings.items) |string| {
+            self.allocator.free(string);
         }
-    } else {
-        err.printExit("Typedef must have a name", .{}, 65);
+        self.strings.deinit();
+        self.types.deinit();
     }
-}
 
-fn writeFile(writer: anytype, file: *NodeList, strings: *StrList, types: *TypeMap) !void {
-    _ = try writer.write("{\n");
+    fn getKey(self: *ToJson, node: *Node) []const u8 {
+        _ = self;
 
-    var first_pair = true;
-    var current = file.first;
-    while (current) |key| {
-        if (key.getType() == .typedef) {
-            try loadTypedef(key.asTypedef(), strings, types);
-            current = key.next;
-        } else if (key.next) |value| {
-            if (first_pair) {
-                first_pair = false;
+        switch (node.getType()) {
+            .string => {
+                // todo - unescape "
+                return node.asString();
+            },
+            .value => return node.asValue(),
+            else => unreachable,
+        }
+    }
+
+    fn loadTypedef(self: *ToJson, typedef: *NodeList) !void {
+        if (typedef.first) |name| {
+            if (name.next) |first_val| {
+                const key = self.getKey(name);
+                try self.types.put(key, first_val);
             } else {
-                _ = try writer.write(",\n");
+                err.printExit("Typedef must have at least one value", .{}, 65);
             }
-            try indent(writer, 1);
-            try writeKey(writer, key);
-            _ = try writer.write(": ");
-            try writeValue(writer, value, 1);
-            current = value.next;
         } else {
-            err.printExit("File has a mismatched number of keys and values", .{}, 65);
+            err.printExit("Typedef must have a name", .{}, 65);
         }
     }
 
-    _ = try writer.write("\n}");
-}
+    fn writeFile(self: *ToJson, writer: anytype, file: *NodeList) !void {
+        _ = try writer.write("{\n");
 
-fn writeKey(writer: anytype, node: *Node) Error!void {
-    switch (node.getType()) {
-        .string => {
-            _ = try writer.write("\"");
-            // todo - escape various characters
-            _ = try writer.write(node.asString());
-            _ = try writer.write("\"");
-        },
-        .value => {
-            // todo - parse and check for value patterns and then always write them as strings
-            _ = try writer.write("\"");
-            // todo - escape "
-            _ = try writer.write(node.asValue());
-            _ = try writer.write("\"");
-        },
-        else => unreachable,
-    }
-}
-
-fn writeList(writer: anytype, list: *NodeList, indent_level: usize) Error!void {
-    _ = try writer.write("[\n");
-
-    var first = true;
-    var current = list.first;
-    while (current) |cur| : (current = cur.next) {
-        if (first) {
-            first = false;
-        } else {
-            _ = try writer.write(",\n");
+        var first_pair = true;
+        var current = file.first;
+        while (current) |key| {
+            if (key.getType() == .typedef) {
+                try self.loadTypedef(key.asTypedef());
+                current = key.next;
+            } else if (key.next) |value| {
+                if (first_pair) {
+                    first_pair = false;
+                } else {
+                    _ = try writer.write(",\n");
+                }
+                try indent(writer, 1);
+                try writeKey(writer, key);
+                _ = try writer.write(": ");
+                try self.writeValue(writer, value, null, 1);
+                current = value.next;
+            } else {
+                err.printExit("File has a mismatched number of keys and values", .{}, 65);
+            }
         }
-        try indent(writer, indent_level + 1);
-        try writeValue(writer, cur, indent_level + 1);
+
+        _ = try writer.write("\n}");
     }
 
-    _ = try writer.write("\n");
-    try indent(writer, indent_level);
-    _ = try writer.write("]");
-}
+    fn writeKey(writer: anytype, node: *Node) !void {
+        switch (node.getType()) {
+            .string => {
+                _ = try writer.write("\"");
+                // todo - escape various characters
+                _ = try writer.write(node.asString());
+                _ = try writer.write("\"");
+            },
+            .value => {
+                // todo - parse and check for value patterns and then always write them as strings
+                _ = try writer.write("\"");
+                // todo - escape "
+                _ = try writer.write(node.asValue());
+                _ = try writer.write("\"");
+            },
+            else => unreachable,
+        }
+    }
 
-fn writeMap(writer: anytype, map: *NodeList, indent_level: usize) Error!void {
-    _ = try writer.write("{\n");
+    fn writeList(self: *ToJson, writer: anytype, list: *NodeList, type_keys: ?*Node, indent_level: usize) !void {
+        _ = try writer.write("[\n");
 
-    var first = true;
-    var current = map.first;
-    while (current) |key| {
-        if (key.next) |value| {
+        var first = true;
+        var current = list.first;
+        while (current) |cur| : (current = cur.next) {
             if (first) {
                 first = false;
             } else {
                 _ = try writer.write(",\n");
             }
             try indent(writer, indent_level + 1);
-            try writeKey(writer, key);
-            _ = try writer.write(": ");
-            try writeValue(writer, value, indent_level + 1);
-            current = value.next;
+            try self.writeValue(writer, cur, type_keys, indent_level + 1);
+        }
+
+        _ = try writer.write("\n");
+        try indent(writer, indent_level);
+        _ = try writer.write("]");
+    }
+
+    fn writeMap(self: *ToJson, writer: anytype, map: *NodeList, type_keys: ?*Node, indent_level: usize) !void {
+        _ = try writer.write("{\n");
+
+        var first = true;
+        var current = map.first;
+        if (type_keys) |_| {
+            var curr_key = type_keys;
+            while (current) |value| : (current = value.next) {
+                if (curr_key) |key| {
+                    if (value.getType() != .discard) {
+                        if (first) {
+                            first = false;
+                        } else {
+                            _ = try writer.write(",\n");
+                        }
+                        try indent(writer, indent_level + 1);
+                        try writeKey(writer, key);
+                        _ = try writer.write(": ");
+                        try self.writeValue(writer, value, null, indent_level + 1);
+                    }
+                    curr_key = key.next;
+                } else {
+                    err.printExit("Typed map has more values than keys", .{}, 65);
+                }
+            }
         } else {
-            err.printExit("Map has a mismatched number of keys and values", .{}, 65);
+            while (current) |key| {
+                if (key.next) |value| {
+                    if (first) {
+                        first = false;
+                    } else {
+                        _ = try writer.write(",\n");
+                    }
+                    try indent(writer, indent_level + 1);
+                    try writeKey(writer, key);
+                    _ = try writer.write(": ");
+                    try self.writeValue(writer, value, null, indent_level + 1);
+                    current = value.next;
+                } else {
+                    err.printExit("Map has a mismatched number of keys and values", .{}, 65);
+                }
+            }
+        }
+
+        _ = try writer.write("\n");
+        try indent(writer, indent_level);
+        _ = try writer.write("}");
+    }
+
+    fn writeTyped(self: *ToJson, writer: anytype, node: *TypedNode, indent_level: usize) Error!void {
+        const keys = switch (node.type.getType()) {
+            .discard => null,
+            .map => node.type.asMap().first,
+            .string => b: {
+                // todo - unescape "
+                break :b self.types.get(node.type.asString());
+            },
+            .value => self.types.get(node.type.asValue()),
+            else => unreachable,
+        };
+        switch (node.node.getType()) {
+            .list => try self.writeList(writer, node.node.asList(), keys, indent_level),
+            .map => try self.writeMap(writer, node.node.asMap(), keys, indent_level),
+            else => unreachable,
         }
     }
 
-    _ = try writer.write("\n");
-    try indent(writer, indent_level);
-    _ = try writer.write("}");
-}
-
-fn writeValue(writer: anytype, node: *Node, indent_level: usize) Error!void {
-    switch (node.getType()) {
-        .list => try writeList(writer, node.asList(), indent_level),
-        .map => try writeMap(writer, node.asMap(), indent_level),
-        .string => {
-            _ = try writer.write("\"");
-            // todo - escape various characters
-            _ = try writer.write(node.asString());
-            _ = try writer.write("\"");
-        },
-        .typed => {
-            // todo
-            _ = try writer.write("\"[typed]\"");
-        },
-        .value => {
-            if (std.mem.eql(u8, node.asValue(), "true") or
-                std.mem.eql(u8, node.asValue(), "false") or
-                std.mem.eql(u8, node.asValue(), "null"))
-            {
-                _ = try writer.write(node.asValue());
-            } else {
-                // todo - numbers
+    fn writeValue(self: *ToJson, writer: anytype, node: *Node, type_keys: ?*Node, indent_level: usize) Error!void {
+        switch (node.getType()) {
+            .list => try self.writeList(writer, node.asList(), type_keys, indent_level),
+            .map => try self.writeMap(writer, node.asMap(), type_keys, indent_level),
+            .string => {
                 _ = try writer.write("\"");
-                // todo - escape "
-                _ = try writer.write(node.asValue());
+                // todo - escape various characters
+                _ = try writer.write(node.asString());
                 _ = try writer.write("\"");
-            }
-        },
-        else => unreachable,
+            },
+            .typed => try self.writeTyped(writer, node.asTyped(), indent_level),
+            .value => {
+                if (std.mem.eql(u8, node.asValue(), "true") or
+                    std.mem.eql(u8, node.asValue(), "false") or
+                    std.mem.eql(u8, node.asValue(), "null"))
+                {
+                    _ = try writer.write(node.asValue());
+                } else {
+                    // todo - numbers
+                    _ = try writer.write("\"");
+                    // todo - escape "
+                    _ = try writer.write(node.asValue());
+                    _ = try writer.write("\"");
+                }
+            },
+            else => unreachable,
+        }
     }
-}
 
-fn indent(writer: anytype, indent_level: usize) !void {
-    for (0..indent_level) |_| {
-        _ = try writer.write("\t");
+    fn indent(writer: anytype, indent_level: usize) !void {
+        for (0..indent_level) |_| {
+            _ = try writer.write("\t");
+        }
     }
-}
+};

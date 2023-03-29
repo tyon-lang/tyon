@@ -27,7 +27,12 @@ null null
 
 (/person first middle last)
 
-me /person(First D Last)
+me /person (First D Last)
+me2 /person (First _ Last)
+me3 /person (First)
+me4 /person (_ _ Last)
+
+nested /person ((a 1) (b 2) (c 3))
 
 people /person [
 	(a b c)
@@ -39,4 +44,5 @@ points /(x y z) [
     (1 1 1)
     (2 _ 2)
     (3 3)
+	(_ 4)
 ]

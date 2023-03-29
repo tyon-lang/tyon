@@ -4,9 +4,9 @@ const Allocator = std.mem.Allocator;
 const err = @import("error.zig");
 const format = @import("format.zig");
 const Parser = @import("parser.zig").Parser;
-const to_json = @import("to_json.zig");
+const ToJson = @import("to_json.zig").ToJson;
 
-const version = std.SemanticVersion{ .major = 0, .minor = 1, .patch = 0, .pre = "dev.8" };
+const version = std.SemanticVersion{ .major = 0, .minor = 1, .patch = 0, .pre = "dev.9" };
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -116,7 +116,7 @@ fn fileToJson(alloc: Allocator, path: []const u8) !void {
     defer parser.deinit();
 
     const result = parser.parse();
-    try to_json.toJson(alloc, buffered_writer.writer(), result.root);
+    try ToJson.convert(alloc, buffered_writer.writer(), result.root);
     try buffered_writer.flush();
 }
 
