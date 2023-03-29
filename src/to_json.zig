@@ -1,22 +1,62 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 const Error = std.fs.File.WriteError;
+
+const StrList = std.ArrayList([]const u8);
+const TypeMap = std.StringHashMap(*Node);
 
 const err = @import("error.zig");
 const Node = @import("tree.zig").Node;
 const NodeList = @import("tree.zig").NodeList;
 
-pub fn toJson(writer: anytype, node: *Node) Error!void {
-    try writeFile(writer, node.asFile());
+pub fn toJson(alloc: Allocator, writer: anytype, node: *Node) !void {
+    var strings = StrList.init(alloc);
+    defer strings.deinit();
+
+    var types = TypeMap.init(alloc);
+    defer types.deinit();
+
+    try writeFile(writer, node.asFile(), &strings, &types);
+
+    for (strings.items) |string| {
+        alloc.free(string);
+    }
 }
 
-fn writeFile(writer: anytype, file: *NodeList) Error!void {
+fn getKey(node: *Node, strings: *StrList) []const u8 {
+    _ = strings;
+
+    switch (node.getType()) {
+        .string => {
+            // todo - unescape "
+            return node.asString();
+        },
+        .value => return node.asValue(),
+        else => unreachable,
+    }
+}
+
+fn loadTypedef(typedef: *NodeList, strings: *StrList, types: *TypeMap) !void {
+    if (typedef.first) |name| {
+        if (name.next) |first_val| {
+            const key = getKey(name, strings);
+            try types.put(key, first_val);
+        } else {
+            err.printExit("Typedef must have at least one value", .{}, 65);
+        }
+    } else {
+        err.printExit("Typedef must have a name", .{}, 65);
+    }
+}
+
+fn writeFile(writer: anytype, file: *NodeList, strings: *StrList, types: *TypeMap) !void {
     _ = try writer.write("{\n");
 
     var first_pair = true;
     var current = file.first;
     while (current) |key| {
         if (key.getType() == .typedef) {
-            // todo - typedef
+            try loadTypedef(key.asTypedef(), strings, types);
             current = key.next;
         } else if (key.next) |value| {
             if (first_pair) {

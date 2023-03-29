@@ -6,7 +6,7 @@ const format = @import("format.zig");
 const Parser = @import("parser.zig").Parser;
 const to_json = @import("to_json.zig");
 
-const version = std.SemanticVersion{ .major = 0, .minor = 1, .patch = 0, .pre = "dev.7" };
+const version = std.SemanticVersion{ .major = 0, .minor = 1, .patch = 0, .pre = "dev.8" };
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -116,7 +116,7 @@ fn fileToJson(alloc: Allocator, path: []const u8) !void {
     defer parser.deinit();
 
     const result = parser.parse();
-    try to_json.toJson(buffered_writer.writer(), result.root);
+    try to_json.toJson(alloc, buffered_writer.writer(), result.root);
     try buffered_writer.flush();
 }
 

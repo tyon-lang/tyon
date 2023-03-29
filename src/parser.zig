@@ -154,7 +154,7 @@ pub const Parser = struct {
         } else if (self.match(.value)) {
             parent.add(Node.Value(self.allocator, self.previous));
         } else {
-            errorAt(self.current, "Only strings and values can be used as a key");
+            errorAt(self.current, "Only strings and values can be used as keys");
         }
     }
 

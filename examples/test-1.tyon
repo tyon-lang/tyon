@@ -27,6 +27,8 @@ null null
 
 (/person first middle last)
 
+me /person(First D Last)
+
 people /person [
 	(a b c)
 	(d e f)
