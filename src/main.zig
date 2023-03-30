@@ -4,7 +4,7 @@ const Allocator = std.mem.Allocator;
 const err = @import("error.zig");
 const format = @import("format.zig");
 const Parser = @import("parser.zig").Parser;
-const ToJson = @import("to_json.zig").ToJson;
+const ToJson = @import("ToJson.zig");
 
 const version = std.SemanticVersion{ .major = 0, .minor = 1, .patch = 0, .pre = "dev.9" };
 
@@ -87,7 +87,7 @@ fn fileFormat(alloc: Allocator, path: []const u8) !void {
     defer parser.deinit();
 
     const result = parser.parse();
-    result.print(); // todo - remove
+    _ = result;
 
     // todo
     // try format.format(buffered_writer.writer(), root, 0);

@@ -31,6 +31,7 @@ me /person (First D Last)
 me2 /person (First _ Last)
 me3 /person (First)
 me4 /person (_ _ Last)
+me5 /"person" (a b c)
 
 nested /person ((a 1) (b 2) (c 3))
 
@@ -46,3 +47,15 @@ points /(x y z) [
     (3 3)
 	(_ 4)
 ]
+
+some"quote" neat"o
+
+(/quoted"key a b c)
+
+q1 /quoted"key (1 2)
+q2 /"quoted""key" (3 4 5)
+
+"string says ""neat""" "a ""quoted""
+	multiline	value"
+
+regex "^[a-z0-9_]+\.[a-z]{3,}$"
