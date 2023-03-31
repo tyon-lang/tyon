@@ -6,9 +6,12 @@ const format = @import("format.zig");
 const Parser = @import("parser.zig").Parser;
 const ToJson = @import("ToJson.zig");
 
-const version = std.SemanticVersion{ .major = 0, .minor = 1, .patch = 0, .pre = "dev.10" };
+const version = std.SemanticVersion{ .major = 0, .minor = 1, .patch = 0, .pre = "dev.11" };
 
 pub fn main() !void {
+    // todo - remove
+    defer std.debug.print("\n\nDEFERRED ALL THE THINGS\n\n", .{});
+
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     var alloc = gpa.allocator();
 
@@ -20,39 +23,29 @@ pub fn main() !void {
 
     while (args.next()) |arg| try arg_list.append(arg);
 
-    var valid = false;
     if (arg_list.items.len >= 3 and std.mem.eql(u8, arg_list.items[1], "debug")) {
-        valid = true;
         for (arg_list.items[2..]) |file| {
             try fileDebug(alloc, file);
         }
     } else if (arg_list.items.len >= 3 and std.mem.eql(u8, arg_list.items[1], "format")) {
-        valid = true;
         for (arg_list.items[2..]) |file| {
             try fileFormat(alloc, file);
         }
     } else if (arg_list.items.len >= 2 and std.mem.eql(u8, arg_list.items[1], "help")) {
-        valid = true;
         printUsage();
     } else if (arg_list.items.len >= 3 and std.mem.eql(u8, arg_list.items[1], "to-json")) {
-        valid = true;
         for (arg_list.items[2..]) |file| {
             try fileToJson(alloc, file);
         }
     } else if (arg_list.items.len >= 3 and std.mem.eql(u8, arg_list.items[1], "validate")) {
-        valid = true;
         for (arg_list.items[2..]) |file| {
             try fileValidate(alloc, file);
         }
     } else if (arg_list.items.len >= 2 and std.mem.eql(u8, arg_list.items[1], "version")) {
-        valid = true;
-        try version.format("", .{}, std.io.getStdErr().writer());
-        std.debug.print("\n", .{});
-    }
-
-    if (!valid) {
+        std.debug.print("{}\n", .{version});
+    } else {
         printUsage();
-        std.process.exit(64);
+        return error.InvalidCommand;
     }
 }
 
@@ -63,10 +56,10 @@ fn fileDebug(alloc: Allocator, path: []const u8) !void {
     const source = try file.readToEndAlloc(alloc, std.math.maxInt(usize));
     defer alloc.free(source);
 
-    var parser = Parser.init(alloc, source, true);
+    var parser = try Parser.init(alloc, source, true);
     defer parser.deinit();
 
-    const result = parser.parse();
+    const result = try parser.parse();
     result.print();
 }
 
@@ -77,19 +70,19 @@ fn fileFormat(alloc: Allocator, path: []const u8) !void {
     defer alloc.free(source);
 
     file.close();
+
+    var parser = try Parser.init(alloc, source, true);
+    defer parser.deinit();
+
+    const result = try parser.parse();
+    _ = result;
+
     // todo
     // file = try std.fs.cwd().createFile(path, .{});
     // defer file.close();
 
     // var buffered_writer = std.io.bufferedWriter(file.writer());
 
-    var parser = Parser.init(alloc, source, true);
-    defer parser.deinit();
-
-    const result = parser.parse();
-    _ = result;
-
-    // todo
     // try format.format(buffered_writer.writer(), root, 0);
     // try buffered_writer.flush();
 }
@@ -107,15 +100,16 @@ fn fileToJson(alloc: Allocator, path: []const u8) !void {
     };
     defer alloc.free(out_path);
 
+    var parser = try Parser.init(alloc, source, false);
+    defer parser.deinit();
+
+    const result = try parser.parse();
+
     var out_file = try std.fs.cwd().createFile(out_path, .{});
     defer out_file.close();
 
     var buffered_writer = std.io.bufferedWriter(out_file.writer());
 
-    var parser = Parser.init(alloc, source, false);
-    defer parser.deinit();
-
-    const result = parser.parse();
     try ToJson.convert(alloc, buffered_writer.writer(), result.root);
     try buffered_writer.flush();
 }
@@ -127,10 +121,10 @@ fn fileValidate(alloc: Allocator, path: []const u8) !void {
     const source = try file.readToEndAlloc(alloc, std.math.maxInt(usize));
     defer alloc.free(source);
 
-    var parser = Parser.init(alloc, source, false);
+    var parser = try Parser.init(alloc, source, false);
     defer parser.deinit();
 
-    const result = parser.parse();
+    const result = try parser.parse();
     // todo - validate
     _ = result;
 }

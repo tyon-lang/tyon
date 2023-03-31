@@ -101,7 +101,7 @@ pub const Lexer = struct {
         return self.token(.comment);
     }
 
-    fn string(self: *Lexer) Token {
+    fn string(self: *Lexer) !Token {
         // discard opening quote
         self.resetLength();
 
@@ -122,15 +122,13 @@ pub const Lexer = struct {
         }
 
         if (self.isAtEnd()) {
-            err.errorAt(
-                "Unterminated string",
-                start_line,
-                start_col - 1,
-                self.line,
+            std.debug.print("[{d}, {d}]-[{d}, {d}] Unterminated string", .{
+                start_line + 1,
+                start_col,
+                self.line + 1,
                 self.column,
-                .{},
-                65,
-            );
+            });
+            return error.InvalidInput;
         }
 
         const tok = self.multilineToken(.string, start_line, start_col);
@@ -148,7 +146,7 @@ pub const Lexer = struct {
         return self.token(if (val.len == 1 and val[0] == '_') .discard else .value);
     }
 
-    pub fn lexToken(self: *Lexer) Token {
+    pub fn lexToken(self: *Lexer) !Token {
         self.resetLength();
 
         while (!self.isAtEnd()) {

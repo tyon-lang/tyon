@@ -53,7 +53,7 @@ pub const Parser = struct {
     first_comment: ?*Comment,
     last_comment: ?*Comment,
 
-    pub fn init(alloc: Allocator, source: []const u8, inc_comments: bool) Parser {
+    pub fn init(alloc: Allocator, source: []const u8, inc_comments: bool) !Parser {
         var new = Parser{
             .allocator = alloc,
             .lexer = Lexer.init(source),
@@ -67,7 +67,7 @@ pub const Parser = struct {
             .last_comment = null,
         };
 
-        new.advance();
+        try new.advance();
         return new;
     }
 
@@ -99,11 +99,11 @@ pub const Parser = struct {
         self.last_comment = comment;
     }
 
-    fn advance(self: *Parser) void {
+    fn advance(self: *Parser) !void {
         self.previous = self.current;
 
         while (true) {
-            self.current = self.lexer.lexToken();
+            self.current = try self.lexer.lexToken();
             if (self.current.type != .comment) break;
 
             if (self.include_comments) {
@@ -116,90 +116,90 @@ pub const Parser = struct {
         return self.current.type == expected;
     }
 
-    fn match(self: *Parser, expected: TokenType) bool {
+    fn match(self: *Parser, expected: TokenType) !bool {
         if (!self.check(expected)) return false;
-        self.advance();
+        try self.advance();
         return true;
     }
 
-    fn consume(self: *Parser, expected: TokenType, message: []const u8) void {
+    fn consume(self: *Parser, expected: TokenType, message: []const u8) !void {
         if (!self.check(expected)) {
             errorAt(self.current, message);
         }
-        self.advance();
+        try self.advance();
     }
 
-    pub fn parse(self: *Parser) ParseResult {
+    pub fn parse(self: *Parser) !ParseResult {
         self.root = Node.File(self.allocator);
 
-        self.parseFile(self.root.asFile());
+        try self.parseFile(self.root.asFile());
 
         return .{ .root = self.root, .comments = self.first_comment };
     }
 
-    fn parseFile(self: *Parser, parent: *NodeList) void {
-        while (!self.match(.eof)) {
-            if (self.match(.left_paren)) {
-                self.parseTypedef(parent);
+    fn parseFile(self: *Parser, parent: *NodeList) !void {
+        while (!try self.match(.eof)) {
+            if (try self.match(.left_paren)) {
+                try self.parseTypedef(parent);
             } else {
-                self.parseKey(parent);
-                self.parseValue(parent, false, false);
+                try self.parseKey(parent);
+                try self.parseValue(parent, false, false);
             }
         }
     }
 
-    fn parseKey(self: *Parser, parent: *NodeList) void {
-        if (self.match(.string)) {
+    fn parseKey(self: *Parser, parent: *NodeList) !void {
+        if (try self.match(.string)) {
             parent.add(Node.String(self.allocator, self.previous));
-        } else if (self.match(.value)) {
+        } else if (try self.match(.value)) {
             parent.add(Node.Value(self.allocator, self.previous));
         } else {
             errorAt(self.current, "Only strings and values can be used as keys");
         }
     }
 
-    fn parseList(self: *Parser, list: *Node, typed: bool) void {
+    fn parseList(self: *Parser, list: *Node, typed: bool) error{InvalidInput}!void {
         while (self.current.type != .right_bracket) {
-            self.parseValue(list.asList(), typed, typed);
+            try self.parseValue(list.asList(), typed, typed);
         }
-        self.consume(.right_bracket, "Missing ]");
+        try self.consume(.right_bracket, "Missing ]");
 
         list.end_line = self.previous.end_line;
         list.end_column = self.previous.end_column;
     }
 
-    fn parseMap(self: *Parser, map: *Node, typed: bool) void {
+    fn parseMap(self: *Parser, map: *Node, typed: bool) error{InvalidInput}!void {
         while (self.current.type != .right_paren) {
-            if (!typed) self.parseKey(map.asMap());
-            self.parseValue(map.asMap(), false, typed);
+            if (!typed) try self.parseKey(map.asMap());
+            try self.parseValue(map.asMap(), false, typed);
         }
-        self.consume(.right_paren, "Missing )");
+        try self.consume(.right_paren, "Missing )");
 
         map.end_line = self.previous.end_line;
         map.end_column = self.previous.end_column;
     }
 
-    fn parseTyped(self: *Parser, parent: *NodeList) void {
+    fn parseTyped(self: *Parser, parent: *NodeList) !void {
         const typed = Node.Typed(self.allocator, self.previous);
         parent.add(typed);
 
         var is_typed = true;
 
         // type name or inline type
-        if (self.match(.left_paren)) {
+        if (try self.match(.left_paren)) {
             const inline_type = Node.Map(self.allocator, self.previous);
             typed.asTyped().type = inline_type;
 
             while (self.current.type != .right_paren) {
-                self.parseKey(inline_type.asMap());
+                try self.parseKey(inline_type.asMap());
             }
-            self.consume(.right_paren, "Missing )");
+            try self.consume(.right_paren, "Missing )");
 
             inline_type.end_line = self.previous.end_line;
             inline_type.end_column = self.previous.end_column;
-        } else if (self.match(.value)) {
+        } else if (try self.match(.value)) {
             typed.asTyped().type = Node.Value(self.allocator, self.previous);
-        } else if (self.match(.discard)) {
+        } else if (try self.match(.discard)) {
             typed.asTyped().type = Node.Discard(self.allocator, self.previous);
             is_typed = false;
         } else {
@@ -207,14 +207,14 @@ pub const Parser = struct {
         }
 
         // value
-        if (self.match(.left_paren)) {
+        if (try self.match(.left_paren)) {
             const map = Node.Map(self.allocator, self.previous);
             typed.asTyped().node = map;
-            self.parseMap(map, is_typed);
-        } else if (self.match(.left_bracket)) {
+            try self.parseMap(map, is_typed);
+        } else if (try self.match(.left_bracket)) {
             const list = Node.List(self.allocator, self.previous);
             typed.asTyped().node = list;
-            self.parseList(list, is_typed);
+            try self.parseList(list, is_typed);
         } else {
             errorAt(self.current, "Types can only be applied to lists and maps");
         }
@@ -223,45 +223,45 @@ pub const Parser = struct {
         typed.end_column = self.previous.end_column;
     }
 
-    fn parseTypedef(self: *Parser, parent: *NodeList) void {
+    fn parseTypedef(self: *Parser, parent: *NodeList) !void {
         const typedef = Node.Typedef(self.allocator, self.previous);
         parent.add(typedef);
 
-        self.consume(.slash, "A map cannot be used as a key");
+        try self.consume(.slash, "A map cannot be used as a key");
 
-        self.consume(.value, "Type name must be a value");
+        try self.consume(.value, "Type name must be a value");
         typedef.asTypedef().add(Node.Value(self.allocator, self.previous));
 
         while (self.current.type != .right_paren) {
-            self.parseKey(typedef.asTypedef());
+            try self.parseKey(typedef.asTypedef());
         }
-        self.consume(.right_paren, "Missing )");
+        try self.consume(.right_paren, "Missing )");
 
         typedef.end_line = self.previous.end_line;
         typedef.end_column = self.previous.end_column;
     }
 
-    fn parseValue(self: *Parser, parent: *NodeList, typed_children: bool, allow_discard: bool) void {
-        if (self.match(.left_paren)) {
+    fn parseValue(self: *Parser, parent: *NodeList, typed_children: bool, allow_discard: bool) !void {
+        if (try self.match(.left_paren)) {
             const map = Node.Map(self.allocator, self.previous);
             parent.add(map);
-            self.parseMap(map, typed_children);
-        } else if (self.match(.left_bracket)) {
+            try self.parseMap(map, typed_children);
+        } else if (try self.match(.left_bracket)) {
             const list = Node.List(self.allocator, self.previous);
             parent.add(list);
-            self.parseList(list, typed_children);
-        } else if (self.match(.string)) {
+            try self.parseList(list, typed_children);
+        } else if (try self.match(.string)) {
             parent.add(Node.String(self.allocator, self.previous));
-        } else if (self.match(.value)) {
+        } else if (try self.match(.value)) {
             parent.add(Node.Value(self.allocator, self.previous));
-        } else if (self.match(.discard)) {
+        } else if (try self.match(.discard)) {
             if (allow_discard) {
                 parent.add(Node.Discard(self.allocator, self.previous));
             } else {
                 errorAt(self.previous, "A discard is only valid on typed maps");
             }
-        } else if (self.match(.slash)) {
-            self.parseTyped(parent);
+        } else if (try self.match(.slash)) {
+            try self.parseTyped(parent);
         } else {
             errorAt(self.current, "Not a valid value");
         }
