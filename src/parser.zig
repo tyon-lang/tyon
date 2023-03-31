@@ -197,15 +197,13 @@ pub const Parser = struct {
 
             inline_type.end_line = self.previous.end_line;
             inline_type.end_column = self.previous.end_column;
-        } else if (self.match(.string)) {
-            typed.asTyped().type = Node.String(self.allocator, self.previous);
         } else if (self.match(.value)) {
             typed.asTyped().type = Node.Value(self.allocator, self.previous);
         } else if (self.match(.discard)) {
             typed.asTyped().type = Node.Discard(self.allocator, self.previous);
             is_typed = false;
         } else {
-            errorAt(self.current, "Type must be a string, value, or inline type");
+            errorAt(self.current, "Type must be a value or inline type");
         }
 
         // value
@@ -230,6 +228,10 @@ pub const Parser = struct {
         parent.add(typedef);
 
         self.consume(.slash, "A map cannot be used as a key");
+
+        self.consume(.value, "Type name must be a value");
+        typedef.asTypedef().add(Node.Value(self.allocator, self.previous));
+
         while (self.current.type != .right_paren) {
             self.parseKey(typedef.asTypedef());
         }

@@ -10,7 +10,7 @@ pub fn format(writer: anytype, node: Node, indent_level: usize) Error!void {
         .list => try formatList(writer, node, indent_level),
         .map => try formatMap(writer, node, indent_level),
         .string => try writer.print("\"{s}\"", .{node.asString()}),
-        .value => _ = try writer.write(node.asValue()),
+        .value => try writer.writeAll(node.asValue()),
     }
 }
 
@@ -18,25 +18,25 @@ fn formatFile(writer: anytype, file: Node, indent_level: usize) Error!void {
     const items = file.asFile().items;
     if (items.len > 0) {
         try writePairs(writer, items, file.start_line, false, indent_level);
-        _ = try writer.write("\n");
+        try writer.writeAll("\n");
     }
 }
 
 fn formatList(writer: anytype, list: Node, indent_level: usize) Error!void {
-    _ = try writer.write("[");
+    try writer.writeAll("[");
     try writeItems(writer, list.asList().items, list.start_line, indent_level);
-    _ = try writer.write("]");
+    try writer.writeAll("]");
 }
 
 fn formatMap(writer: anytype, map: Node, indent_level: usize) Error!void {
-    _ = try writer.write("(");
+    try writer.writeAll("(");
     try writePairs(writer, map.asMap().items, map.start_line, true, indent_level);
-    _ = try writer.write(")");
+    try writer.writeAll(")");
 }
 
 fn indent(writer: anytype, indent_level: usize) !void {
     for (0..indent_level) |_| {
-        _ = try writer.write("\t");
+        try writer.writeAll("\t");
     }
 }
 
@@ -47,7 +47,7 @@ fn writeItems(writer: anytype, items: []const Node, start_line: usize, indent_le
     if (items.len > 0) {
         if (items[0].start_line > prior_line) {
             cur_indent = indent_level + 1;
-            _ = try writer.write("\n");
+            try writer.writeAll("\n");
             try indent(writer, cur_indent);
         }
         try format(writer, items[0], cur_indent);
@@ -57,13 +57,13 @@ fn writeItems(writer: anytype, items: []const Node, start_line: usize, indent_le
             if (node.start_line > prior_line) {
                 cur_indent = indent_level + 1;
                 if (node.start_line == prior_line + 1) {
-                    _ = try writer.write("\n");
+                    try writer.writeAll("\n");
                 } else {
-                    _ = try writer.write("\n\n");
+                    try writer.writeAll("\n\n");
                 }
                 try indent(writer, cur_indent);
             } else {
-                _ = try writer.write(" ");
+                try writer.writeAll(" ");
             }
             try format(writer, node, cur_indent);
             prior_line = node.end_line;
@@ -71,7 +71,7 @@ fn writeItems(writer: anytype, items: []const Node, start_line: usize, indent_le
     }
 
     if (cur_indent > indent_level) {
-        _ = try writer.write("\n");
+        try writer.writeAll("\n");
         try indent(writer, indent_level);
     }
 }
@@ -83,7 +83,7 @@ fn writePairs(writer: anytype, items: []const Node, start_line: usize, do_indent
     if (items.len > 0) {
         if (items[0].start_line > prior_line) {
             if (do_indent) cur_indent = indent_level + 1;
-            _ = try writer.write("\n");
+            try writer.writeAll("\n");
             try indent(writer, cur_indent);
         }
         try format(writer, items[0], cur_indent);
@@ -95,13 +95,13 @@ fn writePairs(writer: anytype, items: []const Node, start_line: usize, do_indent
             if (prior_comment or !(second or (node.start_line == prior_line and node.isComment()))) {
                 if (do_indent) cur_indent = indent_level + 1;
                 if (!second and node.start_line > prior_line + 1) {
-                    _ = try writer.write("\n\n");
+                    try writer.writeAll("\n\n");
                 } else {
-                    _ = try writer.write("\n");
+                    try writer.writeAll("\n");
                 }
                 try indent(writer, cur_indent);
             } else {
-                _ = try writer.write(" ");
+                try writer.writeAll(" ");
             }
 
             try format(writer, node, cur_indent);
@@ -115,7 +115,7 @@ fn writePairs(writer: anytype, items: []const Node, start_line: usize, do_indent
     }
 
     if (cur_indent > indent_level) {
-        _ = try writer.write("\n");
+        try writer.writeAll("\n");
         try indent(writer, indent_level);
     }
 }

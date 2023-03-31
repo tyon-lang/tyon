@@ -2,9 +2,6 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Error = std.fs.File.WriteError;
 
-const StrList = std.ArrayList([]const u8);
-const TypeMap = std.StringHashMap(*Node);
-
 const err = @import("error.zig");
 const Node = @import("tree.zig").Node;
 const NodeList = @import("tree.zig").NodeList;
@@ -16,64 +13,24 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
 
         allocator: Allocator,
         writer: @TypeOf(output_writer),
-        strings: StrList,
-        types: TypeMap,
+        types: std.StringHashMap(*Node),
 
         fn init(alloc: Allocator, writer: @TypeOf(output_writer)) Self {
             return .{
                 .allocator = alloc,
                 .writer = writer,
-                .strings = StrList.init(alloc),
-                .types = TypeMap.init(alloc),
+                .types = std.StringHashMap(*Node).init(alloc),
             };
         }
 
         fn deinit(self: *Self) void {
-            for (self.strings.items) |string| {
-                self.allocator.free(string);
-            }
-            self.strings.deinit();
             self.types.deinit();
-        }
-
-        fn getKey(self: *Self, node: *Node) []const u8 {
-            switch (node.getType()) {
-                .string => {
-                    const str = node.asString();
-                    var count: usize = 0;
-                    for (str) |c| {
-                        if (c == '"') count += 1;
-                    }
-                    if (count == 0) {
-                        return str;
-                    } else {
-                        const new_len = str.len - (count / 2);
-                        const heap_chars = self.allocator.alloc(u8, new_len) catch {
-                            err.printExit("Could not allocate memory for string.", .{}, 1);
-                        };
-                        self.strings.append(heap_chars) catch {
-                            err.printExit("Could not allocate memory for string.", .{}, 1);
-                        };
-                        var i: usize = 0;
-                        var index: usize = 0;
-                        while (i < str.len) : (i += 1) {
-                            if (str[i] == '"') i += 1;
-                            heap_chars[index] = str[i];
-                            index += 1;
-                        }
-                        return heap_chars;
-                    }
-                },
-                .value => return node.asValue(),
-                else => unreachable,
-            }
         }
 
         fn loadTypedef(self: *Self, typedef: *NodeList) !void {
             if (typedef.first) |name| {
                 if (name.next) |first_val| {
-                    const key = self.getKey(name);
-                    try self.types.put(key, first_val);
+                    try self.types.put(name.asValue(), first_val);
                 } else {
                     err.printExit("Typedef must have at least one value", .{}, 65);
                 }
@@ -83,7 +40,7 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
         }
 
         fn writeFile(self: *Self, file: *NodeList) !void {
-            _ = try self.writer.write("{\n");
+            try self.writer.writeAll("{\n");
 
             var first_pair = true;
             var current = file.first;
@@ -95,11 +52,11 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
                     if (first_pair) {
                         first_pair = false;
                     } else {
-                        _ = try self.writer.write(",\n");
+                        try self.writer.writeAll(",\n");
                     }
                     try self.indent(1);
                     try self.writeKey(key);
-                    _ = try self.writer.write(": ");
+                    try self.writer.writeAll(": ");
                     try self.writeValue(value, null, 1);
                     current = value.next;
                 } else {
@@ -107,28 +64,28 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
                 }
             }
 
-            _ = try self.writer.write("\n}");
+            try self.writer.writeAll("\n}");
         }
 
         fn writeKey(self: *Self, node: *Node) !void {
             switch (node.getType()) {
                 .string => {
-                    _ = try self.writer.write("\"");
+                    try self.writer.writeAll("\"");
                     try self.writeStringEscaped(node.asString());
-                    _ = try self.writer.write("\"");
+                    try self.writer.writeAll("\"");
                 },
                 .value => {
                     // todo - parse and check for numbers and then write them as strings
-                    _ = try self.writer.write("\"");
+                    try self.writer.writeAll("\"");
                     try self.writeValueEscaped(node.asValue());
-                    _ = try self.writer.write("\"");
+                    try self.writer.writeAll("\"");
                 },
                 else => unreachable,
             }
         }
 
         fn writeList(self: *Self, list: *NodeList, type_keys: ?*Node, indent_level: usize) !void {
-            _ = try self.writer.write("[\n");
+            try self.writer.writeAll("[\n");
 
             var first = true;
             var current = list.first;
@@ -136,19 +93,19 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
                 if (first) {
                     first = false;
                 } else {
-                    _ = try self.writer.write(",\n");
+                    try self.writer.writeAll(",\n");
                 }
                 try self.indent(indent_level + 1);
                 try self.writeValue(cur, type_keys, indent_level + 1);
             }
 
-            _ = try self.writer.write("\n");
+            try self.writer.writeAll("\n");
             try self.indent(indent_level);
-            _ = try self.writer.write("]");
+            try self.writer.writeAll("]");
         }
 
         fn writeMap(self: *Self, map: *NodeList, type_keys: ?*Node, indent_level: usize) !void {
-            _ = try self.writer.write("{\n");
+            try self.writer.writeAll("{\n");
 
             var first = true;
             var current = map.first;
@@ -160,11 +117,11 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
                             if (first) {
                                 first = false;
                             } else {
-                                _ = try self.writer.write(",\n");
+                                try self.writer.writeAll(",\n");
                             }
                             try self.indent(indent_level + 1);
                             try self.writeKey(key);
-                            _ = try self.writer.write(": ");
+                            try self.writer.writeAll(": ");
                             try self.writeValue(value, null, indent_level + 1);
                         }
                         curr_key = key.next;
@@ -178,11 +135,11 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
                         if (first) {
                             first = false;
                         } else {
-                            _ = try self.writer.write(",\n");
+                            try self.writer.writeAll(",\n");
                         }
                         try self.indent(indent_level + 1);
                         try self.writeKey(key);
-                        _ = try self.writer.write(": ");
+                        try self.writer.writeAll(": ");
                         try self.writeValue(value, null, indent_level + 1);
                         current = value.next;
                     } else {
@@ -191,19 +148,15 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
                 }
             }
 
-            _ = try self.writer.write("\n");
+            try self.writer.writeAll("\n");
             try self.indent(indent_level);
-            _ = try self.writer.write("}");
+            try self.writer.writeAll("}");
         }
 
         fn writeTyped(self: *Self, node: *TypedNode, indent_level: usize) Error!void {
             const keys = switch (node.type.getType()) {
                 .discard => null,
                 .map => node.type.asMap().first,
-                .string => b: {
-                    const key = self.getKey(node.type);
-                    break :b self.types.get(key);
-                },
                 .value => self.types.get(node.type.asValue()),
                 else => unreachable,
             };
@@ -219,9 +172,9 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
                 .list => try self.writeList(node.asList(), type_keys, indent_level),
                 .map => try self.writeMap(node.asMap(), type_keys, indent_level),
                 .string => {
-                    _ = try self.writer.write("\"");
+                    try self.writer.writeAll("\"");
                     try self.writeStringEscaped(node.asString());
-                    _ = try self.writer.write("\"");
+                    try self.writer.writeAll("\"");
                 },
                 .typed => try self.writeTyped(node.asTyped(), indent_level),
                 .value => {
@@ -229,12 +182,12 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
                         std.mem.eql(u8, node.asValue(), "false") or
                         std.mem.eql(u8, node.asValue(), "null"))
                     {
-                        _ = try self.writer.write(node.asValue());
+                        try self.writer.writeAll(node.asValue());
                     } else {
                         // todo - numbers
-                        _ = try self.writer.write("\"");
+                        try self.writer.writeAll("\"");
                         try self.writeValueEscaped(node.asValue());
-                        _ = try self.writer.write("\"");
+                        try self.writer.writeAll("\"");
                     }
                 },
                 else => unreachable,
@@ -247,15 +200,15 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
                 switch (str[i]) {
                     '"' => {
                         i += 1;
-                        _ = try self.writer.write("\\\"");
+                        try self.writer.writeAll("\\\"");
                     },
-                    '\\' => _ = try self.writer.write("\\\\"),
-                    '/' => _ = try self.writer.write("\\/"),
-                    8 => _ = try self.writer.write("\\b"),
-                    12 => _ = try self.writer.write("\\f"),
-                    '\n' => _ = try self.writer.write("\\n"),
-                    '\r' => _ = try self.writer.write("\\r"),
-                    '\t' => _ = try self.writer.write("\\t"),
+                    '\\' => try self.writer.writeAll("\\\\"),
+                    '/' => try self.writer.writeAll("\\/"),
+                    8 => try self.writer.writeAll("\\b"),
+                    12 => try self.writer.writeAll("\\f"),
+                    '\n' => try self.writer.writeAll("\\n"),
+                    '\r' => try self.writer.writeAll("\\r"),
+                    '\t' => try self.writer.writeAll("\\t"),
                     else => try self.writer.writeByte(str[i]),
                 }
             }
@@ -263,14 +216,23 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
 
         fn writeValueEscaped(self: *Self, val: []const u8) !void {
             for (val) |c| {
-                if (c == '"') _ = try self.writer.write("\\");
-                try self.writer.writeByte(c);
+                switch (c) {
+                    '"' => try self.writer.writeAll("\\\""),
+                    '\\' => try self.writer.writeAll("\\\\"),
+                    '/' => try self.writer.writeAll("\\/"),
+                    8 => try self.writer.writeAll("\\b"),
+                    12 => try self.writer.writeAll("\\f"),
+                    '\n' => try self.writer.writeAll("\\n"),
+                    '\r' => try self.writer.writeAll("\\r"),
+                    '\t' => try self.writer.writeAll("\\t"),
+                    else => try self.writer.writeByte(c),
+                }
             }
         }
 
         fn indent(self: *Self, indent_level: usize) !void {
             for (0..indent_level) |_| {
-                _ = try self.writer.write("\t");
+                try self.writer.writeAll("\t");
             }
         }
     };
