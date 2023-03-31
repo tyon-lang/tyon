@@ -95,9 +95,7 @@ fn fileToJson(alloc: Allocator, path: []const u8) !void {
     defer alloc.free(source);
 
     const strings = [_][]const u8{ path, ".json" };
-    const out_path = std.mem.concat(alloc, u8, &strings) catch {
-        err.printExit("Could not allocate memory for path.", .{}, 1);
-    };
+    const out_path = try std.mem.concat(alloc, u8, &strings);
     defer alloc.free(out_path);
 
     var parser = try Parser.init(alloc, source, false);

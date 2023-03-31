@@ -2,6 +2,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArenaAllocator = std.heap.ArenaAllocator;
 
+const Error = error{ InvalidInput, OutOfMemory };
+
 const err = @import("error.zig");
 const Lexer = @import("lexer.zig").Lexer;
 const Node = @import("tree.zig").Node;
@@ -14,10 +16,8 @@ const Comment = struct {
     line: usize,
     next: ?*Comment,
 
-    fn init(alloc: Allocator, val: []const u8, line_val: usize) *Comment {
-        const new = alloc.create(Comment) catch {
-            err.printExit("Could not allocate memory for comment.", .{}, 1);
-        };
+    fn init(alloc: Allocator, val: []const u8, line_val: usize) !*Comment {
+        const new = try alloc.create(Comment);
         new.* = .{
             .value = val,
             .line = line_val,
@@ -103,8 +103,8 @@ pub const Parser = struct {
         return error.InvalidInput;
     }
 
-    fn addComment(self: *Parser, val: []const u8, line: usize) void {
-        const comment = Comment.init(self.allocator, val, line);
+    fn addComment(self: *Parser, val: []const u8, line: usize) !void {
+        const comment = try Comment.init(self.allocator, val, line);
         if (self.last_comment) |l| {
             l.next = comment;
         } else {
@@ -121,7 +121,7 @@ pub const Parser = struct {
             if (self.current.type != .comment) break;
 
             if (self.include_comments) {
-                self.addComment(self.current.value, self.current.start_line);
+                try self.addComment(self.current.value, self.current.start_line);
             }
         }
     }
@@ -144,7 +144,7 @@ pub const Parser = struct {
     }
 
     pub fn parse(self: *Parser) !ParseResult {
-        self.root = Node.File(self.allocator);
+        self.root = try Node.File(self.allocator);
 
         try self.parseFile(self.root.asFile());
 
@@ -164,15 +164,15 @@ pub const Parser = struct {
 
     fn parseKey(self: *Parser, parent: *NodeList) !void {
         if (try self.match(.string)) {
-            parent.add(Node.String(self.allocator, self.previous));
+            parent.add(try Node.String(self.allocator, self.previous));
         } else if (try self.match(.value)) {
-            parent.add(Node.Value(self.allocator, self.previous));
+            parent.add(try Node.Value(self.allocator, self.previous));
         } else {
             try errorAt(self.current, "Only strings and values can be used as keys");
         }
     }
 
-    fn parseList(self: *Parser, list: *Node, typed: bool) error{InvalidInput}!void {
+    fn parseList(self: *Parser, list: *Node, typed: bool) Error!void {
         while (self.current.type != .right_bracket) {
             try self.parseValue(list.asList(), typed, typed);
         }
@@ -182,7 +182,7 @@ pub const Parser = struct {
         list.end_column = self.previous.end_column;
     }
 
-    fn parseMap(self: *Parser, map: *Node, typed: bool) error{InvalidInput}!void {
+    fn parseMap(self: *Parser, map: *Node, typed: bool) Error!void {
         while (self.current.type != .right_paren) {
             if (!typed) try self.parseKey(map.asMap());
             try self.parseValue(map.asMap(), false, typed);
@@ -194,14 +194,14 @@ pub const Parser = struct {
     }
 
     fn parseTyped(self: *Parser, parent: *NodeList) !void {
-        const typed = Node.Typed(self.allocator, self.previous);
+        const typed = try Node.Typed(self.allocator, self.previous);
         parent.add(typed);
 
         var is_typed = true;
 
         // type name or inline type
         if (try self.match(.left_paren)) {
-            const inline_type = Node.Map(self.allocator, self.previous);
+            const inline_type = try Node.Map(self.allocator, self.previous);
             typed.asTyped().type = inline_type;
 
             while (self.current.type != .right_paren) {
@@ -212,9 +212,9 @@ pub const Parser = struct {
             inline_type.end_line = self.previous.end_line;
             inline_type.end_column = self.previous.end_column;
         } else if (try self.match(.value)) {
-            typed.asTyped().type = Node.Value(self.allocator, self.previous);
+            typed.asTyped().type = try Node.Value(self.allocator, self.previous);
         } else if (try self.match(.discard)) {
-            typed.asTyped().type = Node.Discard(self.allocator, self.previous);
+            typed.asTyped().type = try Node.Discard(self.allocator, self.previous);
             is_typed = false;
         } else {
             try errorAt(self.current, "Type must be a value or inline type");
@@ -222,11 +222,11 @@ pub const Parser = struct {
 
         // value
         if (try self.match(.left_paren)) {
-            const map = Node.Map(self.allocator, self.previous);
+            const map = try Node.Map(self.allocator, self.previous);
             typed.asTyped().node = map;
             try self.parseMap(map, is_typed);
         } else if (try self.match(.left_bracket)) {
-            const list = Node.List(self.allocator, self.previous);
+            const list = try Node.List(self.allocator, self.previous);
             typed.asTyped().node = list;
             try self.parseList(list, is_typed);
         } else {
@@ -238,13 +238,13 @@ pub const Parser = struct {
     }
 
     fn parseTypedef(self: *Parser, parent: *NodeList) !void {
-        const typedef = Node.Typedef(self.allocator, self.previous);
+        const typedef = try Node.Typedef(self.allocator, self.previous);
         parent.add(typedef);
 
         try self.consume(.slash, "A map cannot be used as a key");
 
         try self.consume(.value, "Type name must be a value");
-        typedef.asTypedef().add(Node.Value(self.allocator, self.previous));
+        typedef.asTypedef().add(try Node.Value(self.allocator, self.previous));
 
         while (self.current.type != .right_paren) {
             try self.parseKey(typedef.asTypedef());
@@ -257,20 +257,20 @@ pub const Parser = struct {
 
     fn parseValue(self: *Parser, parent: *NodeList, typed_children: bool, allow_discard: bool) !void {
         if (try self.match(.left_paren)) {
-            const map = Node.Map(self.allocator, self.previous);
+            const map = try Node.Map(self.allocator, self.previous);
             parent.add(map);
             try self.parseMap(map, typed_children);
         } else if (try self.match(.left_bracket)) {
-            const list = Node.List(self.allocator, self.previous);
+            const list = try Node.List(self.allocator, self.previous);
             parent.add(list);
             try self.parseList(list, typed_children);
         } else if (try self.match(.string)) {
-            parent.add(Node.String(self.allocator, self.previous));
+            parent.add(try Node.String(self.allocator, self.previous));
         } else if (try self.match(.value)) {
-            parent.add(Node.Value(self.allocator, self.previous));
+            parent.add(try Node.Value(self.allocator, self.previous));
         } else if (try self.match(.discard)) {
             if (allow_discard) {
-                parent.add(Node.Discard(self.allocator, self.previous));
+                parent.add(try Node.Discard(self.allocator, self.previous));
             } else {
                 try errorAt(self.previous, "A discard is only valid on typed maps");
             }

@@ -63,10 +63,8 @@ pub const Node = struct {
     end_column: usize,
     next: ?*Node,
 
-    pub fn Discard(alloc: Allocator, token: Token) *Node {
-        const new = alloc.create(Node) catch {
-            err.printExit("Could not allocate memory for node.", .{}, 1);
-        };
+    pub fn Discard(alloc: Allocator, token: Token) !*Node {
+        const new = try alloc.create(Node);
         new.* = .{
             .as = .{ .discard = token.value },
             .start_line = token.start_line,
@@ -78,10 +76,8 @@ pub const Node = struct {
         return new;
     }
 
-    pub fn File(alloc: Allocator) *Node {
-        const new = alloc.create(Node) catch {
-            err.printExit("Could not allocate memory for node.", .{}, 1);
-        };
+    pub fn File(alloc: Allocator) !*Node {
+        const new = try alloc.create(Node);
         new.* = .{
             .as = .{ .file = NodeList.init() },
             .start_line = 0,
@@ -93,10 +89,8 @@ pub const Node = struct {
         return new;
     }
 
-    pub fn List(alloc: Allocator, token: Token) *Node {
-        const new = alloc.create(Node) catch {
-            err.printExit("Could not allocate memory for node.", .{}, 1);
-        };
+    pub fn List(alloc: Allocator, token: Token) !*Node {
+        const new = try alloc.create(Node);
         new.* = .{
             .as = .{ .list = NodeList.init() },
             .start_line = token.start_line,
@@ -108,10 +102,8 @@ pub const Node = struct {
         return new;
     }
 
-    pub fn Map(alloc: Allocator, token: Token) *Node {
-        const new = alloc.create(Node) catch {
-            err.printExit("Could not allocate memory for node.", .{}, 1);
-        };
+    pub fn Map(alloc: Allocator, token: Token) !*Node {
+        const new = try alloc.create(Node);
         new.* = .{
             .as = .{ .map = NodeList.init() },
             .start_line = token.start_line,
@@ -123,10 +115,8 @@ pub const Node = struct {
         return new;
     }
 
-    pub fn String(alloc: Allocator, token: Token) *Node {
-        const new = alloc.create(Node) catch {
-            err.printExit("Could not allocate memory for node.", .{}, 1);
-        };
+    pub fn String(alloc: Allocator, token: Token) !*Node {
+        const new = try alloc.create(Node);
         new.* = .{
             .as = .{ .string = token.value },
             .start_line = token.start_line,
@@ -138,10 +128,8 @@ pub const Node = struct {
         return new;
     }
 
-    pub fn Typed(alloc: Allocator, token: Token) *Node {
-        const new = alloc.create(Node) catch {
-            err.printExit("Could not allocate memory for node.", .{}, 1);
-        };
+    pub fn Typed(alloc: Allocator, token: Token) !*Node {
+        const new = try alloc.create(Node);
         new.* = .{
             .as = .{ .typed = undefined },
             .start_line = token.start_line,
@@ -153,10 +141,8 @@ pub const Node = struct {
         return new;
     }
 
-    pub fn Typedef(alloc: Allocator, token: Token) *Node {
-        const new = alloc.create(Node) catch {
-            err.printExit("Could not allocate memory for node.", .{}, 1);
-        };
+    pub fn Typedef(alloc: Allocator, token: Token) !*Node {
+        const new = try alloc.create(Node);
         new.* = .{
             .as = .{ .typedef = NodeList.init() },
             .start_line = token.start_line,
@@ -168,10 +154,8 @@ pub const Node = struct {
         return new;
     }
 
-    pub fn Value(alloc: Allocator, token: Token) *Node {
-        const new = alloc.create(Node) catch {
-            err.printExit("Could not allocate memory for node.", .{}, 1);
-        };
+    pub fn Value(alloc: Allocator, token: Token) !*Node {
+        const new = try alloc.create(Node);
         new.* = .{
             .as = .{ .value = token.value },
             .start_line = token.start_line,
