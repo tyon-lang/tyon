@@ -81,12 +81,26 @@ pub const Parser = struct {
         }
     }
 
-    fn errorAt(token: Token, message: []const u8) void {
+    fn errorAt(token: Token, message: []const u8) !void {
         if (token.type == .eof) {
-            err.errorAt("at end: {s}", token.start_line, token.start_column, token.end_line, token.end_column, .{message}, 65);
+            std.debug.print("[{d}, {d}]-[{d}, {d}] at end: {s}", .{
+                token.start_line + 1,
+                token.start_column + 1,
+                token.end_line + 1,
+                token.end_column + 1,
+                message,
+            });
         } else {
-            err.errorAt("at '{s}': {s}", token.start_line, token.start_column, token.end_line, token.end_column, .{ token.value, message }, 65);
+            std.debug.print("[{d}, {d}]-[{d}, {d}] at '{s}': {s}", .{
+                token.start_line + 1,
+                token.start_column + 1,
+                token.end_line + 1,
+                token.end_column + 1,
+                token.value,
+                message,
+            });
         }
+        return error.InvalidInput;
     }
 
     fn addComment(self: *Parser, val: []const u8, line: usize) void {
@@ -124,7 +138,7 @@ pub const Parser = struct {
 
     fn consume(self: *Parser, expected: TokenType, message: []const u8) !void {
         if (!self.check(expected)) {
-            errorAt(self.current, message);
+            try errorAt(self.current, message);
         }
         try self.advance();
     }
@@ -154,7 +168,7 @@ pub const Parser = struct {
         } else if (try self.match(.value)) {
             parent.add(Node.Value(self.allocator, self.previous));
         } else {
-            errorAt(self.current, "Only strings and values can be used as keys");
+            try errorAt(self.current, "Only strings and values can be used as keys");
         }
     }
 
@@ -203,7 +217,7 @@ pub const Parser = struct {
             typed.asTyped().type = Node.Discard(self.allocator, self.previous);
             is_typed = false;
         } else {
-            errorAt(self.current, "Type must be a value or inline type");
+            try errorAt(self.current, "Type must be a value or inline type");
         }
 
         // value
@@ -216,7 +230,7 @@ pub const Parser = struct {
             typed.asTyped().node = list;
             try self.parseList(list, is_typed);
         } else {
-            errorAt(self.current, "Types can only be applied to lists and maps");
+            try errorAt(self.current, "Types can only be applied to lists and maps");
         }
 
         typed.end_line = self.previous.end_line;
@@ -258,12 +272,12 @@ pub const Parser = struct {
             if (allow_discard) {
                 parent.add(Node.Discard(self.allocator, self.previous));
             } else {
-                errorAt(self.previous, "A discard is only valid on typed maps");
+                try errorAt(self.previous, "A discard is only valid on typed maps");
             }
         } else if (try self.match(.slash)) {
             try self.parseTyped(parent);
         } else {
-            errorAt(self.current, "Not a valid value");
+            try errorAt(self.current, "Not a valid value");
         }
     }
 };
