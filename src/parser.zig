@@ -2,9 +2,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArenaAllocator = std.heap.ArenaAllocator;
 
-const Error = error{ InvalidInput, OutOfMemory };
+const Error = error{ OutOfMemory, Syntax };
 
-const err = @import("error.zig");
 const Lexer = @import("lexer.zig").Lexer;
 const Node = @import("tree.zig").Node;
 const NodeList = @import("tree.zig").NodeList;
@@ -83,7 +82,7 @@ pub const Parser = struct {
 
     fn errorAt(token: Token, message: []const u8) !void {
         if (token.type == .eof) {
-            std.debug.print("[{d}, {d}]-[{d}, {d}] at end: {s}", .{
+            std.debug.print("[{d}, {d}]-[{d}, {d}] at end: {s}\n", .{
                 token.start_line + 1,
                 token.start_column + 1,
                 token.end_line + 1,
@@ -91,7 +90,7 @@ pub const Parser = struct {
                 message,
             });
         } else {
-            std.debug.print("[{d}, {d}]-[{d}, {d}] at '{s}': {s}", .{
+            std.debug.print("[{d}, {d}]-[{d}, {d}] at '{s}': {s}\n", .{
                 token.start_line + 1,
                 token.start_column + 1,
                 token.end_line + 1,
@@ -100,7 +99,7 @@ pub const Parser = struct {
                 message,
             });
         }
-        return error.InvalidInput;
+        return error.Syntax;
     }
 
     fn addComment(self: *Parser, val: []const u8, line: usize) !void {

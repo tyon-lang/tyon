@@ -1,17 +1,13 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const err = @import("error.zig");
 const format = @import("format.zig");
 const Parser = @import("parser.zig").Parser;
 const ToJson = @import("ToJson.zig");
 
-const version = std.SemanticVersion{ .major = 0, .minor = 1, .patch = 0, .pre = "dev.11" };
+const version = std.SemanticVersion{ .major = 0, .minor = 1, .patch = 0, .pre = "dev.12" };
 
 pub fn main() !void {
-    // todo - remove
-    defer std.debug.print("\n\nDEFERRED ALL THE THINGS\n\n", .{});
-
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     var alloc = gpa.allocator();
 

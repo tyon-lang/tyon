@@ -1,8 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const Error = std.fs.File.WriteError;
+const Error = error{Semantics} || std.fs.File.WriteError;
 
-const err = @import("error.zig");
 const Node = @import("tree.zig").Node;
 const NodeList = @import("tree.zig").NodeList;
 const TypedNode = @import("tree.zig").TypedNode;
@@ -27,15 +26,20 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
             self.types.deinit();
         }
 
+        fn semanticError(comptime fmt: []const u8, args: anytype) !void {
+            std.debug.print(fmt ++ "\n", args);
+            return error.Semantics;
+        }
+
         fn loadTypedef(self: *Self, typedef: *NodeList) !void {
             if (typedef.first) |name| {
                 if (name.next) |first_val| {
                     try self.types.put(name.asValue(), first_val);
                 } else {
-                    err.printExit("Typedef must have at least one value", .{}, 65);
+                    try semanticError("Typedef must have at least one value", .{});
                 }
             } else {
-                err.printExit("Typedef must have a name", .{}, 65);
+                try semanticError("Typedef must have a name", .{});
             }
         }
 
@@ -60,7 +64,7 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
                     try self.writeValue(value, null, 1);
                     current = value.next;
                 } else {
-                    err.printExit("File has a mismatched number of keys and values", .{}, 65);
+                    try semanticError("File has a mismatched number of keys and values", .{});
                 }
             }
 
@@ -84,7 +88,7 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
             }
         }
 
-        fn writeList(self: *Self, list: *NodeList, type_keys: ?*Node, indent_level: usize) !void {
+        fn writeList(self: *Self, list: *NodeList, type_keys: ?*Node, indent_level: usize) Error!void {
             try self.writer.writeAll("[\n");
 
             var first = true;
@@ -104,7 +108,7 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
             try self.writer.writeAll("]");
         }
 
-        fn writeMap(self: *Self, map: *NodeList, type_keys: ?*Node, indent_level: usize) !void {
+        fn writeMap(self: *Self, map: *NodeList, type_keys: ?*Node, indent_level: usize) Error!void {
             try self.writer.writeAll("{\n");
 
             var first = true;
@@ -126,7 +130,7 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
                         }
                         curr_key = key.next;
                     } else {
-                        err.printExit("Typed map has more values than keys", .{}, 65);
+                        try semanticError("Typed map has more values than keys", .{});
                     }
                 }
             } else {
@@ -143,7 +147,7 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
                         try self.writeValue(value, null, indent_level + 1);
                         current = value.next;
                     } else {
-                        err.printExit("Map has a mismatched number of keys and values", .{}, 65);
+                        try semanticError("Map has a mismatched number of keys and values", .{});
                     }
                 }
             }
@@ -153,7 +157,7 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
             try self.writer.writeAll("}");
         }
 
-        fn writeTyped(self: *Self, node: *TypedNode, indent_level: usize) Error!void {
+        fn writeTyped(self: *Self, node: *TypedNode, indent_level: usize) !void {
             const keys = switch (node.type.getType()) {
                 .discard => null,
                 .map => node.type.asMap().first,
@@ -167,7 +171,7 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
             }
         }
 
-        fn writeValue(self: *Self, node: *Node, type_keys: ?*Node, indent_level: usize) Error!void {
+        fn writeValue(self: *Self, node: *Node, type_keys: ?*Node, indent_level: usize) !void {
             switch (node.getType()) {
                 .list => try self.writeList(node.asList(), type_keys, indent_level),
                 .map => try self.writeMap(node.asMap(), type_keys, indent_level),

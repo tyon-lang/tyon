@@ -1,7 +1,5 @@
 const std = @import("std");
 
-const err = @import("error.zig");
-
 pub const TokenType = enum {
     left_paren,
     right_paren,
@@ -122,13 +120,13 @@ pub const Lexer = struct {
         }
 
         if (self.isAtEnd()) {
-            std.debug.print("[{d}, {d}]-[{d}, {d}] Unterminated string", .{
+            std.debug.print("[{d}, {d}]-[{d}, {d}] Unterminated string\n", .{
                 start_line + 1,
                 start_col,
                 self.line + 1,
                 self.column,
             });
-            return error.InvalidInput;
+            return error.Syntax;
         }
 
         const tok = self.multilineToken(.string, start_line, start_col);

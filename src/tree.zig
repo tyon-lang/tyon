@@ -1,7 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const err = @import("error.zig");
 const Token = @import("lexer.zig").Token;
 
 const NodeType = enum {
