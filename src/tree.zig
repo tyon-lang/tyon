@@ -217,6 +217,67 @@ pub const Node = struct {
         return self.as.value;
     }
 
+    pub fn number(self: *Node) ?f64 {
+        if (self.getType() != .value) return null;
+        var val = self.asValue();
+        const negative = val[0] == '-';
+        if (negative) val = val[1..];
+
+        var radix: u8 = 10;
+        var result: usize = 0;
+        if (val.len >= 2 and val[0] == '0') {
+            switch (val[1]) {
+                'b', 'B' => {
+                    val = val[2..];
+                    radix = 2;
+                },
+                'o', 'O' => {
+                    val = val[2..];
+                    radix = 8;
+                },
+                'x', 'X' => {
+                    val = val[2..];
+                    radix = 16;
+                },
+                else => {},
+            }
+        }
+
+        if (val.len == 0 or
+            val[0] == '_' or
+            val[val.len - 1] == '_')
+        {
+            return null;
+        }
+
+        // todo - finish numeric parsing
+        for (val) |c| {
+            switch (c) {
+                '0'...'9', 'a'...'f', 'A'...'F' => {
+                    const digit = switch (c) {
+                        '0'...'9' => c - '0',
+                        'a'...'f' => c - 'a' + 10,
+                        'A'...'F' => c - 'A' + 10,
+                        else => return null,
+                    };
+
+                    if (digit >= radix) return null;
+
+                    result *= radix;
+                    result += digit;
+                },
+                '.' => {},
+                '_' => {},
+                else => return null,
+            }
+        }
+
+        var f_result = @intToFloat(f64, result);
+        if (negative) f_result *= -1;
+
+        return f_result;
+    }
+
     pub fn print(self: *Node, indent: usize) void {
         printIndent(indent);
         switch (self.getType()) {

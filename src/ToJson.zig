@@ -79,10 +79,13 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
                     try self.writer.writeAll("\"");
                 },
                 .value => {
-                    // todo - parse and check for numbers and then write them as strings
-                    try self.writer.writeAll("\"");
-                    try self.writeValueEscaped(node.asValue());
-                    try self.writer.writeAll("\"");
+                    if (node.number()) |num| {
+                        try self.writer.print("\"{d}\"", .{num});
+                    } else {
+                        try self.writer.writeAll("\"");
+                        try self.writeValueEscaped(node.asValue());
+                        try self.writer.writeAll("\"");
+                    }
                 },
                 else => unreachable,
             }
@@ -187,8 +190,9 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
                         std.mem.eql(u8, node.asValue(), "null"))
                     {
                         try self.writer.writeAll(node.asValue());
+                    } else if (node.number()) |num| {
+                        try self.writer.print("{d}", .{num});
                     } else {
-                        // todo - numbers
                         try self.writer.writeAll("\"");
                         try self.writeValueEscaped(node.asValue());
                         try self.writer.writeAll("\"");
