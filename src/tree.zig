@@ -250,7 +250,6 @@ pub const Node = struct {
             return null;
         }
 
-        // todo - finish numeric parsing
         for (val) |c| {
             switch (c) {
                 '0'...'9', 'a'...'f', 'A'...'F' => {
@@ -266,8 +265,12 @@ pub const Node = struct {
                     result *= radix;
                     result += digit;
                 },
-                '.' => {},
-                '_' => {},
+                '.' => {
+                    // todo
+                },
+                '_' => {
+                    // todo
+                },
                 else => return null,
             }
         }
