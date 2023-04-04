@@ -224,7 +224,6 @@ pub const Node = struct {
         if (negative) val = val[1..];
 
         var radix: u8 = 10;
-        var result: usize = 0;
         if (val.len >= 2 and val[0] == '0') {
             switch (val[1]) {
                 'b', 'B' => {
@@ -243,13 +242,11 @@ pub const Node = struct {
             }
         }
 
-        if (val.len == 0 or
-            val[0] == '_' or
-            val[val.len - 1] == '_')
-        {
-            return null;
-        }
-
+        var prior_was_digit = false;
+        var has_fractional_part = false;
+        var whole: usize = 0;
+        var numerator: usize = 0;
+        var denominator: usize = 1;
         for (val) |c| {
             switch (c) {
                 '0'...'9', 'a'...'f', 'A'...'F' => {
@@ -262,23 +259,42 @@ pub const Node = struct {
 
                     if (digit >= radix) return null;
 
-                    result *= radix;
-                    result += digit;
+                    if (!has_fractional_part) {
+                        whole *= radix;
+                        whole += digit;
+                    } else {
+                        numerator *= radix;
+                        numerator += digit;
+                        denominator *= radix;
+                    }
+
+                    prior_was_digit = true;
                 },
                 '.' => {
-                    // todo
+                    if (!prior_was_digit) return null;
+                    if (has_fractional_part) return null;
+
+                    has_fractional_part = true;
+                    prior_was_digit = false;
                 },
                 '_' => {
-                    // todo
+                    if (!prior_was_digit) return null;
+
+                    prior_was_digit = false;
                 },
                 else => return null,
             }
         }
 
-        var f_result = @intToFloat(f64, result);
-        if (negative) f_result *= -1;
+        if (!prior_was_digit) return null;
 
-        return f_result;
+        var result = @intToFloat(f64, whole);
+        if (has_fractional_part) {
+            result += @intToFloat(f64, numerator) / @intToFloat(f64, denominator);
+        }
+        if (negative) result *= -1;
+
+        return result;
     }
 
     pub fn print(self: *Node, indent: usize) void {

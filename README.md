@@ -4,7 +4,7 @@ AKA, can we be simpler and more compact than JSON without sacrificing readabilit
 
 File extension: `.tyon`
 
-Implemented in [Zig](https://ziglang.org/), last compiled with 0.11.0-dev.2227+f9b582950.
+Implemented in [Zig](https://ziglang.org/), last compiled with 0.11.0-dev.2371+a31450375.
 
 ```lisp
 ; a comment
