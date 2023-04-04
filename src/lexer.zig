@@ -5,6 +5,7 @@ pub const TokenType = enum {
     right_paren,
     left_bracket,
     right_bracket,
+    equal,
     slash,
     comment,
     discard,
@@ -87,7 +88,7 @@ pub const Lexer = struct {
 
     fn isValue(c: u8) bool {
         return switch (c) {
-            ' ', '\t', '\r', '\n', '(', ')', '[', ']', 0 => false,
+            ' ', '\t', '\r', '\n', '(', ')', '[', ']', '=', ';', 0 => false,
             else => true,
         };
     }
@@ -161,6 +162,7 @@ pub const Lexer = struct {
                 ')' => return self.token(.right_paren),
                 '[' => return self.token(.left_bracket),
                 ']' => return self.token(.right_bracket),
+                '=' => return self.token(.equal),
                 '/' => return self.token(.slash),
                 ';' => return self.comment(),
                 '"' => return self.string(),

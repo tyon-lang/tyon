@@ -5,7 +5,7 @@ const Format = @import("Format.zig");
 const Parser = @import("parser.zig").Parser;
 const ToJson = @import("ToJson.zig");
 
-const version = std.SemanticVersion{ .major = 0, .minor = 1, .patch = 0, .pre = "dev.14" };
+const version = std.SemanticVersion{ .major = 0, .minor = 2, .patch = 0, .pre = "dev.1" };
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};

@@ -10,41 +10,47 @@ Implemented in [Zig](https://ziglang.org/), last compiled with 0.11.0-dev.2371+a
 ; a comment
 
 ; list = [first second ...]
-; map = (key value key value ...)
+; map = (key = value key = value ...)
 ; top level is an implicit map and does not need ()s
 
 ; can declare keys separately from values for maps
 
 ; list of customers
-customers [
+customers = [
     (
-        first First     ; breaks on whitespace, so here first = "First"
-        last "D Last"   ; strings are surrounded by quotes, so here last = "D Last"
+        first = "First"     ; strings are surrounded by quotes, so here first = "First"
+        last = Last         ; without quotes the value breaks on whitespace and a few
+                            ; other characters (see below), so here last = "Last"
     )
     (
-        first Second
-        last  Last
+        first = Second
+        last = Last
     )
 ]
 
-; list of people with a defined type
-(/person first middle-initial last)
+; defining the type 'person'
+/person = (first middle-initial last)
 
-"business owner" /person("Mr Owner" _ Person)
+; "business owner" is of type person, the values following the type
+; correspond to the keys declared by the type
+; the _ is used to indicate no value for a key
+"business owner" = /person ("Mr Owner" _ Person)
 
-people /person[
+; a list of type person
+people = /person [
     (First D Last)
     (Second _ Last)
 ]
 
-; with an inline type
-people /(first middle last)[
+; types can also be declared inline
+; if there are fewer values than keys, the remaining keys will have no value
+people = /(first middle last) [
     (First D Person)
     (Second)
 ]
 
 ; the type applies to the first level of maps encountered
-multi /person[
+multi = /person [
     [
         (first _ last)
         (second D last)
@@ -55,15 +61,15 @@ multi /person[
     ]
 ]
 
-; types can be overridden, and a type of _ is no type, so both keys and values are expected
-multiple-types /person[
+; types can be overridden, and a type of _ is no type, so both keys and values are then expected
+multiple-types = /person [
     [
         (first _ last)
         (second D last)
     ]
     /_[
-        (x 1 y 2)
-        /point(x 3 y 7)
+        (x = 1 y = 2)
+        /(a b)(3 4)
     ]
 ]
 ```
@@ -83,4 +89,4 @@ multiple-types /person[
 * __null__: the value `null`
 * __string__: `"` characters `"`
     * strings can span multiple lines, all content is literal except `"` which is escaped as `""`
-* __value__: consecutive characters other than `space` `tab` `CR` `LF` `(` `)` `[` `]`
+* __value__: consecutive characters other than `space` `tab` `CR` `LF` `(` `)` `[` `]` `=` `;`

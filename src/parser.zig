@@ -152,10 +152,11 @@ pub const Parser = struct {
 
     fn parseFile(self: *Parser, parent: *NodeList) !void {
         while (!try self.match(.eof)) {
-            if (try self.match(.left_paren)) {
+            if (try self.match(.slash)) {
                 try self.parseTypedef(parent);
             } else {
                 try self.parseKey(parent);
+                try self.consume(.equal, "Missing =");
                 try self.parseValue(parent, false, false);
             }
         }
@@ -183,7 +184,10 @@ pub const Parser = struct {
 
     fn parseMap(self: *Parser, map: *Node, typed: bool) Error!void {
         while (self.current.type != .right_paren) {
-            if (!typed) try self.parseKey(map.asMap());
+            if (!typed) {
+                try self.parseKey(map.asMap());
+                try self.consume(.equal, "Missing =");
+            }
             try self.parseValue(map.asMap(), false, typed);
         }
         try self.consume(.right_paren, "Missing )");
@@ -240,10 +244,11 @@ pub const Parser = struct {
         const typedef = try Node.Typedef(self.allocator, self.previous);
         parent.add(typedef);
 
-        try self.consume(.slash, "A map cannot be used as a key");
-
         try self.consume(.value, "Type name must be a value");
         typedef.asTypedef().add(try Node.Value(self.allocator, self.previous));
+
+        try self.consume(.equal, "Missing =");
+        try self.consume(.left_paren, "Missing (");
 
         while (self.current.type != .right_paren) {
             try self.parseKey(typedef.asTypedef());
