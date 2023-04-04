@@ -1,11 +1,11 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const format = @import("format.zig");
+const Format = @import("Format.zig");
 const Parser = @import("parser.zig").Parser;
 const ToJson = @import("ToJson.zig");
 
-const version = std.SemanticVersion{ .major = 0, .minor = 1, .patch = 0, .pre = "dev.13" };
+const version = std.SemanticVersion{ .major = 0, .minor = 1, .patch = 0, .pre = "dev.14" };
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -71,16 +71,14 @@ fn fileFormat(alloc: Allocator, path: []const u8) !void {
     defer parser.deinit();
 
     const result = try parser.parse();
-    _ = result;
 
-    // todo
-    // file = try std.fs.cwd().createFile(path, .{});
-    // defer file.close();
+    file = try std.fs.cwd().createFile(path, .{});
+    defer file.close();
 
-    // var buffered_writer = std.io.bufferedWriter(file.writer());
+    var buffered_writer = std.io.bufferedWriter(file.writer());
 
-    // try format.format(buffered_writer.writer(), root, 0);
-    // try buffered_writer.flush();
+    try Format.format(result, buffered_writer.writer());
+    try buffered_writer.flush();
 }
 
 fn fileToJson(alloc: Allocator, path: []const u8) !void {

@@ -10,7 +10,7 @@ const NodeList = @import("tree.zig").NodeList;
 const Token = @import("lexer.zig").Token;
 const TokenType = @import("lexer.zig").TokenType;
 
-const Comment = struct {
+pub const Comment = struct {
     value: []const u8,
     line: usize,
     next: ?*Comment,
@@ -26,7 +26,7 @@ const Comment = struct {
     }
 };
 
-const ParseResult = struct {
+pub const ParseResult = struct {
     root: *Node,
     comments: ?*Comment,
 
