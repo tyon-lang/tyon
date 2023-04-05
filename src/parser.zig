@@ -215,7 +215,7 @@ pub const Parser = struct {
             inline_type.end_line = self.previous.end_line;
             inline_type.end_column = self.previous.end_column;
         } else if (try self.match(.value)) {
-            typed.asTyped().type = try Node.Value(self.allocator, self.previous);
+            typed.asTyped().type = try Node.TypeName(self.allocator, self.previous);
         } else if (try self.match(.discard)) {
             typed.asTyped().type = try Node.Discard(self.allocator, self.previous);
             is_typed = false;
@@ -241,22 +241,23 @@ pub const Parser = struct {
     }
 
     fn parseTypedef(self: *Parser, parent: *NodeList) !void {
-        const typedef = try Node.Typedef(self.allocator, self.previous);
-        parent.add(typedef);
-
         try self.consume(.value, "Type name must be a value");
-        typedef.asTypedef().add(try Node.Value(self.allocator, self.previous));
+        const type_name = try Node.TypeName(self.allocator, self.previous);
+        parent.add(type_name);
 
         try self.consume(.equal, "Missing =");
         try self.consume(.left_paren, "Missing (");
 
+        const keys = try Node.Map(self.allocator, self.previous);
+        parent.add(keys);
+
         while (self.current.type != .right_paren) {
-            try self.parseKey(typedef.asTypedef());
+            try self.parseKey(keys.asMap());
         }
         try self.consume(.right_paren, "Missing )");
 
-        typedef.end_line = self.previous.end_line;
-        typedef.end_column = self.previous.end_column;
+        keys.end_line = self.previous.end_line;
+        keys.end_column = self.previous.end_column;
     }
 
     fn parseValue(self: *Parser, parent: *NodeList, typed_children: bool, allow_discard: bool) !void {

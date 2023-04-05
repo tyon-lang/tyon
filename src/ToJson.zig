@@ -31,15 +31,11 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
             return error.Semantics;
         }
 
-        fn loadTypedef(self: *Self, typedef: *NodeList) !void {
-            if (typedef.first) |name| {
-                if (name.next) |first_val| {
-                    try self.types.put(name.asValue(), first_val);
-                } else {
-                    try semanticError("Typedef must have at least one value", .{});
-                }
+        fn loadType(self: *Self, name: []const u8, keys: ?*Node) !void {
+            if (keys) |first| {
+                try self.types.put(name, first);
             } else {
-                try semanticError("Typedef must have a name", .{});
+                try semanticError("Typedef must have at least one key", .{});
             }
         }
 
@@ -49,19 +45,20 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
             var first_pair = true;
             var current = file.first;
             while (current) |key| {
-                if (key.getType() == .typedef) {
-                    try self.loadTypedef(key.asTypedef());
-                    current = key.next;
-                } else if (key.next) |value| {
-                    if (first_pair) {
-                        first_pair = false;
+                if (key.next) |value| {
+                    if (key.getType() == .type_name) {
+                        try self.loadType(key.asTypeName(), value.asMap().first);
                     } else {
-                        try self.writer.writeAll(",\n");
+                        if (first_pair) {
+                            first_pair = false;
+                        } else {
+                            try self.writer.writeAll(",\n");
+                        }
+                        try self.indent(1);
+                        try self.writeKey(key);
+                        try self.writer.writeAll(": ");
+                        try self.writeValue(value, null, 1);
                     }
-                    try self.indent(1);
-                    try self.writeKey(key);
-                    try self.writer.writeAll(": ");
-                    try self.writeValue(value, null, 1);
                     current = value.next;
                 } else {
                     try semanticError("File has a mismatched number of keys and values", .{});
@@ -164,7 +161,7 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
             const keys = switch (node.type.getType()) {
                 .discard => null,
                 .map => node.type.asMap().first,
-                .value => self.types.get(node.type.asValue()),
+                .type_name => self.types.get(node.type.asTypeName()),
                 else => unreachable,
             };
             switch (node.node.getType()) {

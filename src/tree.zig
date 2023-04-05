@@ -10,7 +10,7 @@ const NodeType = enum {
     map,
     string,
     typed,
-    typedef,
+    type_name,
     value,
 };
 
@@ -53,7 +53,7 @@ pub const Node = struct {
         map: NodeList,
         string: []const u8,
         typed: TypedNode,
-        typedef: NodeList,
+        type_name: []const u8,
         value: []const u8,
     },
     start_line: usize,
@@ -140,10 +140,10 @@ pub const Node = struct {
         return new;
     }
 
-    pub fn Typedef(alloc: Allocator, token: Token) !*Node {
+    pub fn TypeName(alloc: Allocator, token: Token) !*Node {
         const new = try alloc.create(Node);
         new.* = .{
-            .as = .{ .typedef = NodeList.init() },
+            .as = .{ .type_name = token.value },
             .start_line = token.start_line,
             .start_column = token.start_column,
             .end_line = token.end_line,
@@ -175,7 +175,6 @@ pub const Node = struct {
                 self.asTyped().type.deinit(alloc);
                 self.asTyped().node.deinit(alloc);
             },
-            .typedef => self.asTypedef().deinit(alloc),
             else => {},
         }
         alloc.destroy(self);
@@ -209,8 +208,8 @@ pub const Node = struct {
         return &self.as.typed;
     }
 
-    pub fn asTypedef(self: *Node) *NodeList {
-        return &self.as.typedef;
+    pub fn asTypeName(self: Node) []const u8 {
+        return self.as.type_name;
     }
 
     pub fn asValue(self: Node) []const u8 {
@@ -343,18 +342,7 @@ pub const Node = struct {
                 self.asTyped().type.print(indent + 1);
                 self.asTyped().node.print(indent + 1);
             },
-            .typedef => {
-                std.debug.print("typedef [{d}, {d}]-[{d}, {d}]\n", .{
-                    self.start_line + 1,
-                    self.start_column + 1,
-                    self.end_line + 1,
-                    self.end_column + 1,
-                });
-                var current = self.asTypedef().first;
-                while (current) |cur| : (current = cur.next) {
-                    cur.print(indent + 1);
-                }
-            },
+            .type_name => std.debug.print("type name '{s}'\n", .{self.asTypeName()}),
             .value => std.debug.print("value '{s}'\n", .{self.asValue()}),
         }
     }
