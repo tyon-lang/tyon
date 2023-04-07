@@ -70,19 +70,19 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
 
         fn writeKey(self: *Self, node: *Node) !void {
             switch (node.getType()) {
-                .string => {
-                    try self.writer.writeAll("\"");
-                    try self.writeStringEscaped(node.asString());
-                    try self.writer.writeAll("\"");
-                },
-                .value => {
+                .literal => {
                     if (node.number()) |num| {
                         try self.writer.print("\"{d}\"", .{num});
                     } else {
                         try self.writer.writeAll("\"");
-                        try self.writeValueEscaped(node.asValue());
+                        try self.writeLiteralEscaped(node.asLiteral());
                         try self.writer.writeAll("\"");
                     }
+                },
+                .string => {
+                    try self.writer.writeAll("\"");
+                    try self.writeStringEscaped(node.asString());
+                    try self.writer.writeAll("\"");
                 },
                 else => unreachable,
             }
@@ -174,6 +174,20 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
         fn writeValue(self: *Self, node: *Node, type_keys: ?*Node, indent_level: usize) !void {
             switch (node.getType()) {
                 .list => try self.writeList(node.asList(), type_keys, indent_level),
+                .literal => {
+                    if (std.mem.eql(u8, node.asLiteral(), "true") or
+                        std.mem.eql(u8, node.asLiteral(), "false") or
+                        std.mem.eql(u8, node.asLiteral(), "null"))
+                    {
+                        try self.writer.writeAll(node.asLiteral());
+                    } else if (node.number()) |num| {
+                        try self.writer.print("{d}", .{num});
+                    } else {
+                        try self.writer.writeAll("\"");
+                        try self.writeLiteralEscaped(node.asLiteral());
+                        try self.writer.writeAll("\"");
+                    }
+                },
                 .map => try self.writeMap(node.asMap(), type_keys, indent_level),
                 .string => {
                     try self.writer.writeAll("\"");
@@ -181,21 +195,23 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
                     try self.writer.writeAll("\"");
                 },
                 .typed => try self.writeTyped(node.asTyped(), indent_level),
-                .value => {
-                    if (std.mem.eql(u8, node.asValue(), "true") or
-                        std.mem.eql(u8, node.asValue(), "false") or
-                        std.mem.eql(u8, node.asValue(), "null"))
-                    {
-                        try self.writer.writeAll(node.asValue());
-                    } else if (node.number()) |num| {
-                        try self.writer.print("{d}", .{num});
-                    } else {
-                        try self.writer.writeAll("\"");
-                        try self.writeValueEscaped(node.asValue());
-                        try self.writer.writeAll("\"");
-                    }
-                },
                 else => unreachable,
+            }
+        }
+
+        fn writeLiteralEscaped(self: *Self, val: []const u8) !void {
+            for (val) |c| {
+                switch (c) {
+                    '"' => try self.writer.writeAll("\\\""),
+                    '\\' => try self.writer.writeAll("\\\\"),
+                    '/' => try self.writer.writeAll("\\/"),
+                    8 => try self.writer.writeAll("\\b"),
+                    12 => try self.writer.writeAll("\\f"),
+                    '\n' => try self.writer.writeAll("\\n"),
+                    '\r' => try self.writer.writeAll("\\r"),
+                    '\t' => try self.writer.writeAll("\\t"),
+                    else => try self.writer.writeByte(c),
+                }
             }
         }
 
@@ -215,22 +231,6 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
                     '\r' => try self.writer.writeAll("\\r"),
                     '\t' => try self.writer.writeAll("\\t"),
                     else => try self.writer.writeByte(str[i]),
-                }
-            }
-        }
-
-        fn writeValueEscaped(self: *Self, val: []const u8) !void {
-            for (val) |c| {
-                switch (c) {
-                    '"' => try self.writer.writeAll("\\\""),
-                    '\\' => try self.writer.writeAll("\\\\"),
-                    '/' => try self.writer.writeAll("\\/"),
-                    8 => try self.writer.writeAll("\\b"),
-                    12 => try self.writer.writeAll("\\f"),
-                    '\n' => try self.writer.writeAll("\\n"),
-                    '\r' => try self.writer.writeAll("\\r"),
-                    '\t' => try self.writer.writeAll("\\t"),
-                    else => try self.writer.writeByte(c),
                 }
             }
         }

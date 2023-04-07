@@ -53,11 +53,11 @@ pub fn format(parse_result: ParseResult, output_writer: anytype) !void {
                 .discard => try self.write(node.asDiscard(), node.start_line, node.end_line, min, max),
                 .file => unreachable,
                 .list => {},
+                .literal => try self.write(node.asLiteral(), node.start_line, node.end_line, min, max),
                 .map => {},
                 .string => try self.print("\"{s}\"", .{node.asString()}, node.start_line, node.end_line, min, max),
                 .typed => {},
                 .type_name => try self.print("/{s}", .{node.asTypeName()}, node.start_line, node.end_line, min, max),
-                .value => try self.write(node.asValue(), node.start_line, node.end_line, min, max),
             }
         }
 

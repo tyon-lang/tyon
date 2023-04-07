@@ -9,8 +9,8 @@ pub const TokenType = enum {
     slash,
     comment,
     discard,
+    literal,
     string,
-    value,
     eof,
 };
 
@@ -86,7 +86,7 @@ pub const Lexer = struct {
         };
     }
 
-    fn isValue(c: u8) bool {
+    fn isLiteral(c: u8) bool {
         return switch (c) {
             ' ', '\t', '\r', '\n', '(', ')', '[', ']', '=', ';', 0 => false,
             else => true,
@@ -98,6 +98,12 @@ pub const Lexer = struct {
         self.resetLength();
         while (self.peek(0) != '\n' and !self.isAtEnd()) self.advance();
         return self.token(.comment);
+    }
+
+    fn literal(self: *Lexer) Token {
+        while (isLiteral(self.peek(0))) self.advance();
+        const val = self.source[self.start_index..self.current_index];
+        return self.token(if (val.len == 1 and val[0] == '_') .discard else .literal);
     }
 
     fn string(self: *Lexer) !Token {
@@ -139,12 +145,6 @@ pub const Lexer = struct {
         return tok;
     }
 
-    fn value(self: *Lexer) Token {
-        while (isValue(self.peek(0))) self.advance();
-        const val = self.source[self.start_index..self.current_index];
-        return self.token(if (val.len == 1 and val[0] == '_') .discard else .value);
-    }
-
     pub fn lexToken(self: *Lexer) !Token {
         self.resetLength();
 
@@ -166,7 +166,7 @@ pub const Lexer = struct {
                 '/' => return self.token(.slash),
                 ';' => return self.comment(),
                 '"' => return self.string(),
-                else => return self.value(),
+                else => return self.literal(),
             }
         }
 

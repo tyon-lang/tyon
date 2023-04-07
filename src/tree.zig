@@ -7,11 +7,11 @@ const NodeType = enum {
     discard,
     file,
     list,
+    literal,
     map,
     string,
     typed,
     type_name,
-    value,
 };
 
 pub const NodeList = struct {
@@ -50,11 +50,11 @@ pub const Node = struct {
         discard: []const u8,
         file: NodeList,
         list: NodeList,
+        literal: []const u8,
         map: NodeList,
         string: []const u8,
         typed: TypedNode,
         type_name: []const u8,
-        value: []const u8,
     },
     start_line: usize,
     start_column: usize,
@@ -92,6 +92,19 @@ pub const Node = struct {
         const new = try alloc.create(Node);
         new.* = .{
             .as = .{ .list = NodeList.init() },
+            .start_line = token.start_line,
+            .start_column = token.start_column,
+            .end_line = token.end_line,
+            .end_column = token.end_column,
+            .next = null,
+        };
+        return new;
+    }
+
+    pub fn Literal(alloc: Allocator, token: Token) !*Node {
+        const new = try alloc.create(Node);
+        new.* = .{
+            .as = .{ .literal = token.value },
             .start_line = token.start_line,
             .start_column = token.start_column,
             .end_line = token.end_line,
@@ -153,19 +166,6 @@ pub const Node = struct {
         return new;
     }
 
-    pub fn Value(alloc: Allocator, token: Token) !*Node {
-        const new = try alloc.create(Node);
-        new.* = .{
-            .as = .{ .value = token.value },
-            .start_line = token.start_line,
-            .start_column = token.start_column,
-            .end_line = token.end_line,
-            .end_column = token.end_column,
-            .next = null,
-        };
-        return new;
-    }
-
     pub fn deinit(self: *Node, alloc: Allocator) void {
         switch (self.getType()) {
             .file => self.asFile().deinit(alloc),
@@ -196,6 +196,10 @@ pub const Node = struct {
         return &self.as.list;
     }
 
+    pub fn asLiteral(self: Node) []const u8 {
+        return self.as.literal;
+    }
+
     pub fn asMap(self: *Node) *NodeList {
         return &self.as.map;
     }
@@ -212,13 +216,9 @@ pub const Node = struct {
         return self.as.type_name;
     }
 
-    pub fn asValue(self: Node) []const u8 {
-        return self.as.value;
-    }
-
     pub fn number(self: *Node) ?f64 {
-        if (self.getType() != .value) return null;
-        var val = self.asValue();
+        if (self.getType() != .literal) return null;
+        var val = self.asLiteral();
         const negative = val[0] == '-';
         if (negative) val = val[1..];
 
@@ -319,6 +319,7 @@ pub const Node = struct {
                     cur.print(indent + 1);
                 }
             },
+            .literal => std.debug.print("literal '{s}'\n", .{self.asLiteral()}),
             .map => {
                 std.debug.print("map [{d}, {d}]-[{d}, {d}]\n", .{
                     self.start_line + 1,
@@ -343,7 +344,6 @@ pub const Node = struct {
                 self.asTyped().node.print(indent + 1);
             },
             .type_name => std.debug.print("type name '{s}'\n", .{self.asTypeName()}),
-            .value => std.debug.print("value '{s}'\n", .{self.asValue()}),
         }
     }
 

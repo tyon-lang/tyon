@@ -165,10 +165,10 @@ pub const Parser = struct {
     fn parseKey(self: *Parser, parent: *NodeList) !void {
         if (try self.match(.string)) {
             parent.add(try Node.String(self.allocator, self.previous));
-        } else if (try self.match(.value)) {
-            parent.add(try Node.Value(self.allocator, self.previous));
+        } else if (try self.match(.literal)) {
+            parent.add(try Node.Literal(self.allocator, self.previous));
         } else {
-            try errorAt(self.current, "Only strings and values can be used as keys");
+            try errorAt(self.current, "Only literals and strings can be used as keys");
         }
     }
 
@@ -214,13 +214,13 @@ pub const Parser = struct {
 
             inline_type.end_line = self.previous.end_line;
             inline_type.end_column = self.previous.end_column;
-        } else if (try self.match(.value)) {
+        } else if (try self.match(.literal)) {
             typed.asTyped().type = try Node.TypeName(self.allocator, self.previous);
         } else if (try self.match(.discard)) {
             typed.asTyped().type = try Node.Discard(self.allocator, self.previous);
             is_typed = false;
         } else {
-            try errorAt(self.current, "Type must be a value or inline type");
+            try errorAt(self.current, "Type must be a literal or inline type");
         }
 
         // value
@@ -241,7 +241,7 @@ pub const Parser = struct {
     }
 
     fn parseTypedef(self: *Parser, parent: *NodeList) !void {
-        try self.consume(.value, "Type name must be a value");
+        try self.consume(.literal, "Type name must be a literal");
         const type_name = try Node.TypeName(self.allocator, self.previous);
         parent.add(type_name);
 
@@ -271,8 +271,8 @@ pub const Parser = struct {
             try self.parseList(list, typed_children);
         } else if (try self.match(.string)) {
             parent.add(try Node.String(self.allocator, self.previous));
-        } else if (try self.match(.value)) {
-            parent.add(try Node.Value(self.allocator, self.previous));
+        } else if (try self.match(.literal)) {
+            parent.add(try Node.Literal(self.allocator, self.previous));
         } else if (try self.match(.discard)) {
             if (allow_discard) {
                 parent.add(try Node.Discard(self.allocator, self.previous));
