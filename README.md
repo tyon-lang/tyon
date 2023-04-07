@@ -1,8 +1,6 @@
-# Typed Object Notation
+# Typed Object Notation | [Specification](SPECIFICATION.md) | [Data Formats](FORMAT.md)
 
 AKA, can we be simpler and more compact than JSON without sacrificing readability.
-
-File extension: `.tyon`
 
 Implemented in [Zig](https://ziglang.org/), last compiled with 0.11.0-dev.2371+a31450375.
 
@@ -19,8 +17,8 @@ Implemented in [Zig](https://ziglang.org/), last compiled with 0.11.0-dev.2371+a
 customers = [
     (
         first = "First"     ; strings are surrounded by quotes, so here first = "First"
-        last = Last         ; without quotes the value breaks on whitespace and a few
-                            ; other characters (see below), so here last = "Last"
+        last = Last         ; without quotes the literal breaks on whitespace and a few
+                            ; other characters (see full spec), so here last = "Last"
     )
     (
         first = Second
@@ -73,20 +71,3 @@ multiple-types = /person [
     ]
 ]
 ```
-
----
-
-## Formats
-
-* __boolean__: the values `true` and `false`
-* __number__: all numbers can start with a `-` and contain a `.`
-    * if present, the `.` must be between two digits
-    * `_` can be used as a digits separator and must be between two digits
-    * __binary__: starts with `0[bB]`, digits are `[01]`
-    * __octal__: starts with `0[oO]`, digits are `[0-7]`
-    * __decimal__: digits are `[0-9]`
-    * __hexadecimal__: starts with `0[xX]`, digits are `[0-9a-fA-F]`
-* __null__: the value `null`
-* __string__: `"` characters `"`
-    * strings can span multiple lines, all content is literal except `"` which is escaped as `""`
-* __value__: consecutive characters other than `space` `tab` `CR` `LF` `(` `)` `[` `]` `=` `;`
