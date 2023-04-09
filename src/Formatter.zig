@@ -5,7 +5,6 @@ const Comment = @import("parser.zig").Comment;
 const Node = @import("tree.zig").Node;
 const NodeList = @import("tree.zig").NodeList;
 const ParseResult = @import("parser.zig").ParseResult;
-const TypedNode = @import("tree.zig").TypedNode;
 
 pub fn format(parse_result: ParseResult, output_writer: anytype) !void {
     const formatter = struct {

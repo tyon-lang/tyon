@@ -1,9 +1,10 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const Format = @import("Format.zig");
+const Formatter = @import("Formatter.zig");
 const Parser = @import("parser.zig").Parser;
 const ToJson = @import("ToJson.zig");
+const Validator = @import("validator.zig").Validator;
 
 const version = std.SemanticVersion{ .major = 0, .minor = 2, .patch = 0, .pre = "dev.4" };
 
@@ -77,7 +78,7 @@ fn fileFormat(alloc: Allocator, path: []const u8) !void {
 
     var buffered_writer = std.io.bufferedWriter(file.writer());
 
-    try Format.format(result, buffered_writer.writer());
+    try Formatter.format(result, buffered_writer.writer());
     try buffered_writer.flush();
 }
 
@@ -117,8 +118,7 @@ fn fileValidate(alloc: Allocator, path: []const u8) !void {
     defer parser.deinit();
 
     const result = try parser.parse();
-    // todo - validate
-    _ = result;
+    try Validator.validate(result.root);
 }
 
 fn printUsage() void {
