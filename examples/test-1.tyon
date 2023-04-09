@@ -4,8 +4,8 @@ first = First ; first name
 last = Last ; last name
 age = 42 ; number
 
-no-whitespace=13
-no-comment-space = val;comment
+no-whitespace = 13
+no-comment-space = val ;comment
 
 vals = [1 2 [3 4 [5 6] 7 8] 9] ; list
 
@@ -17,7 +17,7 @@ map = (
 	b = ; hi key
 	2 ; hi value
 
-	c = (a=1 b=2 c=3) ; neat
+	c = (a = 1 b = 2 c = 3) ; neat
 )
 
 true = true
@@ -36,13 +36,13 @@ nested = /person ((a = 1) (b = 2) (c = 3))
 people = /person [
 	(a b c)
 	(d e f)
-	/_(a = 1 b = 2)
+	/_ (a = 1 b = 2)
 ]
 
 points = /(x y z) [
-    (1 2 3)
-    (4 _ 5)
-    (6 7)
+	(1 2 3)
+	(4 _ 5)
+	(6 7)
 	(_ 8)
 ]
 

@@ -24,9 +24,9 @@ pub const NodeList = struct {
 
     pub fn deinit(self: NodeList, alloc: Allocator) void {
         var current = self.first;
-        while (current) |curr| {
-            current = curr.next;
-            alloc.destroy(curr);
+        while (current) |cur| {
+            current = cur.next;
+            alloc.destroy(cur);
         }
     }
 

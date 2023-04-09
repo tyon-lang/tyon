@@ -74,9 +74,9 @@ pub const Parser = struct {
         self.root.deinit(self.allocator);
 
         var current = self.first_comment;
-        while (current) |curr| {
-            current = curr.next;
-            self.allocator.destroy(curr);
+        while (current) |cur| {
+            current = cur.next;
+            self.allocator.destroy(cur);
         }
     }
 

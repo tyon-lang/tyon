@@ -1,5 +1,36 @@
 ; format test
 
-a = 1 b = 2
+/point = (x y z)
 
+p = /point (1 2 3)
 
+; inline type
+a = /(a b c) (first second third)
+
+; untyping with /_
+b = /_ (z = 1 x = 2)
+
+; nested collections
+test = /point [
+	(1 2)
+	(3 _ 4)
+	(5 6)
+	[
+		(7 seven)
+		(8 eight)
+		/_ (first = 1 second = 2)
+		(9 nine)
+		/_ [
+			(a = 1 b = 2)
+			/point (3 4 5)
+			/(first last) [
+				(
+					First
+					Person
+				)
+				(Second)
+				/_ (other = yes)
+			]
+		]
+	]
+]
