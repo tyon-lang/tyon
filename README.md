@@ -53,7 +53,7 @@ points = /(x y z) [
 
 ### Less Punctuation
 
-TYON files are implicitly a map and do not require brackets.  
+TYON files are implicitly maps and do not require brackets.  
 Keys do not require quotes unless they contain breaking characters such as whitespace.  
 Commas are not used between items.
 
