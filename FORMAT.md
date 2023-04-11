@@ -13,3 +13,4 @@ These recommendations are not applicable to strings, which are always interprete
   * __octal__: starts with `0[oO]`, digits are `[0-7]`
   * __decimal__: digits are `[0-9]`
   * __hexadecimal__: starts with `0[xX]`, digits are `[0-9a-fA-F]`
+* __date and time__: [RFC 3339](https://www.rfc-editor.org/rfc/rfc3339) formatted date and time, except replacing the `T` with a `space` is not permitted
