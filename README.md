@@ -4,70 +4,125 @@ AKA, can we be simpler and more compact than JSON without sacrificing readabilit
 
 Implemented in [Zig](https://ziglang.org/), last compiled with 0.11.0-dev.2371+a31450375.
 
-```lisp
-; a comment
+---
 
-; list = [first second ...]
-; map = (key = value key = value ...)
-; top level is an implicit map and does not need ()s
+## Comparison with JSON
 
-; can declare keys separately from values for maps
+### Key Repetition
 
-; list of customers
-customers = [
-    (
-        first = "First"     ; strings are surrounded by quotes, so here first = "First"
-        last = Last         ; without quotes the literal breaks on whitespace and a few
-                            ; other characters (see full spec), so here last = "Last"
-    )
-    (
-        first = Second
-        last = Last
-    )
-]
+Typed lists and maps let you specify the keys once at the start of the collection.
 
-; defining the type 'person'
-/person = (first middle-initial last)
+<table>
+<tr>
+<th>JSON</th>
+<th>TYON</th>
+</tr>
+<tr>
+<td>
 
-; "business owner" is of type person, the values following the type
-; correspond to the keys declared by the type
-; the _ is used to indicate no value for a key
-"business owner" = /person ("Mr Owner" _ Person)
-
-; a list of type person
-people = /person [
-    (First D Last)
-    (Second _ Last)
-]
-
-; types can also be declared inline
-; if there are fewer values than keys, the remaining keys will have no value
-people = /(first middle last) [
-    (First D Person)
-    (Second)
-]
-
-; the type applies to the first level of maps encountered
-multi = /person [
-    [
-        (first _ last)
-        (second D last)
-    ]
-    [
-        (third)
-        (fourth A Last)
-    ]
-]
-
-; types can be overridden, and a type of _ is no type, so both keys and values are then expected
-multiple-types = /person [
-    [
-        (first _ last)
-        (second D last)
-    ]
-    /_[
-        (x = 1 y = 2)
-        /(a b)(3 4)
-    ]
+```json
+"points": [
+    {"x": 1, "y": 2, "z": 3},
+    {"x": 4, "y": 5},
+    {"x": 6, "y": 7},
+    {"x": 8, "z": 9},
+    {"y": 10, "z": 11},
+    ...
 ]
 ```
+
+</td>
+<td>
+
+```lisp
+points = /(x y z) [
+    (1 2 3)
+    (4 5)
+    (6 7)
+    (8 _ 9)
+    (_ 10 11)
+    ...
+]
+```
+
+</td>
+</tr>
+</table>
+
+---
+
+### Less Punctuation
+
+TYON files are implicitly a map and do not require brackets.  
+Keys do not require quotes unless they contain breaking characters such as whitespace.  
+Commas are not used between items.
+
+<table>
+<tr>
+<th>JSON</th>
+<th>TYON</th>
+</tr>
+<tr>
+<td>
+
+```json
+{
+    "first": 1,
+    "second": "two",
+    "third": "hello world",
+    "fourth key": 4
+}
+```
+
+</td>
+<td>
+
+```lisp
+first = 1
+second = two
+third = "hello world"
+"fourth key" = 4
+```
+
+</td>
+</tr>
+</table>
+
+---
+
+### Escaping Strings
+
+Strings can span multiple lines and everything is literal except for `"` which is escaped as `""`
+
+<table>
+<tr>
+<th>JSON</th>
+<th>TYON</th>
+</tr>
+<tr>
+<td>
+
+```json
+"regex": "\\[[0-9]+\\]\\.[0-9]+",
+"multiline": "some\n\tindented\nmultiline\ntext"
+```
+
+</td>
+<td>
+
+```lisp
+regex = "\[[0-9]+\]\.[0-9]+"
+multiline =
+"some
+    indented
+multiline
+text"
+```
+
+</td>
+</tr>
+</table>
+
+---
+
+## The TYON CLI
