@@ -6,7 +6,7 @@ const Parser = @import("parser.zig").Parser;
 const ToJson = @import("ToJson.zig");
 const Validator = @import("validator.zig").Validator;
 
-const version = std.SemanticVersion{ .major = 0, .minor = 2, .patch = 0, .pre = "dev.4" };
+const version = std.SemanticVersion{ .major = 0, .minor = 2, .patch = 0, .pre = "dev.5" };
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -108,6 +108,8 @@ fn fileToJson(alloc: Allocator, path: []const u8) !void {
 }
 
 fn fileValidate(alloc: Allocator, path: []const u8) !void {
+    std.debug.print("{s}\n", .{path});
+
     var file = try std.fs.cwd().openFile(path, .{});
     defer file.close();
 
@@ -118,7 +120,7 @@ fn fileValidate(alloc: Allocator, path: []const u8) !void {
     defer parser.deinit();
 
     const result = try parser.parse();
-    try Validator.validate(result.root);
+    try Validator.validate(alloc, result.root);
 }
 
 fn printUsage() void {

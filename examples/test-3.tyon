@@ -1,0 +1,5 @@
+; validation test
+
+/test = (a b c)
+/test = (d)
+/test = (e f)
