@@ -6,7 +6,7 @@ Implemented in [Zig](https://ziglang.org/), last compiled with 0.11.0-dev.2371+a
 
 ---
 
-## Comparison with JSON
+## Motivations
 
 ### Key Repetition
 
@@ -51,7 +51,7 @@ points = /(x y z) [
 
 ---
 
-### Less Punctuation
+### Symbol Clutter
 
 TYON files are implicitly maps and do not require brackets.  
 Keys do not require quotes unless they contain breaking characters such as whitespace.  
@@ -104,7 +104,7 @@ Strings can span multiple lines and everything is literal except for `"` which i
 
 ```json
 "regex": "\\[[0-9]+\\]\\.[0-9]+",
-"multiline": "some\n\tindented\nmultiline\ntext"
+"multiline": "some\n\tindented\nmultiline \"quoted\"\ntext"
 ```
 
 </td>
@@ -115,7 +115,7 @@ regex = "\[[0-9]+\]\.[0-9]+"
 multiline =
 "some
     indented
-multiline
+multiline ""quoted""
 text"
 ```
 
