@@ -2,8 +2,6 @@
 
 AKA, can we be simpler and more compact than JSON without sacrificing readability.
 
-Implemented in [Zig](https://ziglang.org/), last compiled with 0.11.0-dev.2371+a31450375.
-
 ---
 
 ## Motivations
@@ -126,3 +124,34 @@ text"
 ---
 
 ## The TYON CLI
+
+### Usage
+
+```
+tyon <command>
+```
+
+### Commands
+
+```
+format   <files>    Format specified files.
+to-json  <files>    Convert files to JSON, the output file name is [input file name].json
+validate <files>    Validate specified files.
+
+debug    <files>    Print debug information for the specified files.
+
+help                Print help information and exit.
+version             Print program version and exit.
+```
+
+### Building From Source
+
+The TYON CLI is implemented in [Zig](https://ziglang.org/), last compiled with 0.11.0-dev.2371+a31450375.
+
+You will need [a build of Zig master](https://ziglang.org/download/) to build the CLI.
+
+```
+git clone https://github.com/defiant00/tyon
+cd tyon
+zig build -Doptimize=ReleaseSafe
+```
