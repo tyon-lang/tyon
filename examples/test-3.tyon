@@ -1,5 +1,19 @@
 ; validation test
 
-/test = (a b c)
-/test = (d)
-/test = (e f)
+/none = ()          ; empty type 'none'
+m0 = /none ()
+/one = (a)
+m1 = /one ()
+/two = (a b)
+m2 = /two ()
+
+/dup1 = (y y)       ; duplicate key 'y'
+du1 = /dup1 ()
+/dup2 = (m n o n)   ; duplicate key 'n'
+du2 = /dup2 ()
+
+mi1 = /(a) ()
+mi4 = /(a b c d)()
+
+id1 = /(z z)()      ; duplicate key 'z'
+id2 = /(a b c b)()  ; duplicate key 'b'

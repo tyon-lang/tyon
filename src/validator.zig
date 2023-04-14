@@ -5,11 +5,13 @@ const Node = @import("tree.zig").Node;
 const NodeList = @import("tree.zig").NodeList;
 
 const TypeInfo = struct {
+    node: *Node,
     count: usize,
     used: bool,
 
-    fn init() TypeInfo {
+    fn init(name_node: *Node) TypeInfo {
         return .{
+            .node = name_node,
             .count = 0,
             .used = false,
         };
@@ -19,17 +21,23 @@ const TypeInfo = struct {
 pub const Validator = struct {
     allocator: Allocator,
     has_error: bool,
+    strings: std.ArrayList([]const u8),
     types: std.StringHashMap(TypeInfo),
 
     fn init(alloc: Allocator) Validator {
         return .{
             .allocator = alloc,
             .has_error = false,
+            .strings = std.ArrayList([]const u8).init(alloc),
             .types = std.StringHashMap(TypeInfo).init(alloc),
         };
     }
 
     fn deinit(self: *Validator) void {
+        for (self.strings.items) |string| {
+            self.allocator.free(string);
+        }
+        self.strings.deinit();
         self.types.deinit();
     }
 
@@ -64,13 +72,38 @@ pub const Validator = struct {
         }
     }
 
+    fn validateKey(self: *Validator, keys: *std.StringHashMap(void), key: *Node) !void {
+        switch (key.getType()) {
+            .literal => {
+                // keys are unique
+                if (keys.contains(key.asLiteral())) {
+                    self.hasError(key, "Duplicate key '{s}'", .{key.asLiteral()});
+                } else {
+                    try keys.put(key.asLiteral(), {});
+                }
+            },
+            .string => {
+                // unescape quotes
+                const str = key.asString();
+                const size = std.mem.replacementSize(u8, str, "\"\"", "\"");
+                const unescaped = try self.allocator.alloc(u8, size);
+                _ = std.mem.replace(u8, str, "\"\"", "\"", unescaped);
+                try self.strings.append(unescaped);
+
+                // keys are unique
+                if (keys.contains(unescaped)) {
+                    self.hasError(key, "Duplicate key '{s}'", .{unescaped});
+                } else {
+                    try keys.put(unescaped, {});
+                }
+            },
+            else => unreachable,
+        }
+    }
+
     fn validateNode(self: *Validator, node: *Node) !void {
         switch (node.getType()) {
             .file => {
-                // todo - typedef contains at least 1 key
-                // todo - find unused typedefs
-
-                // keys are unique
                 var keys = std.StringHashMap(void).init(self.allocator);
                 defer keys.deinit();
 
@@ -78,18 +111,36 @@ pub const Validator = struct {
                 while (current) |key| {
                     if (key.next) |value| {
                         switch (key.getType()) {
-                            .literal => {
-                                // todo - check for dupes in the key map
-                            },
-                            .string => {
-                                // todo - unescape quotes and check for dupes in the keys map
+                            .literal, .string => {
+                                // keys are unique
+                                try self.validateKey(&keys, key);
+
+                                // validate values
+                                try self.validateNode(value);
                             },
                             .type_name => {
                                 // type names are unique
                                 if (self.types.contains(key.asTypeName())) {
                                     self.hasError(key, "Duplicate type '{s}'", .{key.asTypeName()});
                                 } else {
-                                    try self.types.put(key.asTypeName(), TypeInfo.init());
+                                    var info = TypeInfo.init(key);
+
+                                    var type_keys = std.StringHashMap(void).init(self.allocator);
+                                    defer type_keys.deinit();
+
+                                    var type_cur = value.asMap().first;
+                                    while (type_cur) |type_key| : (type_cur = type_key.next) {
+                                        info.count += 1;
+                                        // keys are unique
+                                        try self.validateKey(&type_keys, type_key);
+                                    }
+
+                                    // type contains at least one key
+                                    if (info.count < 1) {
+                                        self.hasError(key, "Empty type '{s}'", .{key.asTypeName()});
+                                    }
+
+                                    try self.types.put(key.asTypeName(), info);
                                 }
                             },
                             else => unreachable,
@@ -101,24 +152,75 @@ pub const Validator = struct {
                         current = key.next;
                     }
                 }
+
+                // unused types
+                var iter = self.types.iterator();
+                while (iter.next()) |item| {
+                    if (!item.value_ptr.used) {
+                        self.hasError(item.value_ptr.node, "Unused type '{s}'", .{item.key_ptr.*});
+                    }
+                }
             },
             .list => {
-                // check children
+                // validate items
                 var current = node.asList().first;
                 while (current) |cur| : (current = cur.next) {
                     try self.validateNode(cur);
                 }
             },
             .map => {
-                // todo - map keys are unique
+                var keys = std.StringHashMap(void).init(self.allocator);
+                defer keys.deinit();
+
+                var current = node.asMap().first;
+                while (current) |key| {
+                    if (key.next) |value| {
+                        // keys are unique
+                        try self.validateKey(&keys, key);
+
+                        // validate values
+                        try self.validateNode(value);
+
+                        current = value.next;
+                    } else {
+                        self.hasError(node, "Map has a mismatched number of keys and values", .{});
+                        current = key.next;
+                    }
+                }
             },
             .typed => {
-                // todo - type
-                // todo -   named
-                // todo -     type is defined
-                // todo -   inline
-                // todo -     keys are unique
-                // todo -     contains at least 1 key
+                const typed = node.asTyped();
+                switch (typed.type.getType()) {
+                    .discard => {
+                        std.debug.print("discard type\n", .{});
+                    },
+                    .map => {
+                        var keys = std.StringHashMap(void).init(self.allocator);
+                        defer keys.deinit();
+
+                        var current = typed.type.asMap().first;
+                        while (current) |key| : (current = key.next) {
+                            // keys are unique
+                            try self.validateKey(&keys, key);
+                        }
+
+                        // contains at least one key
+                        if (keys.unmanaged.size < 1) {
+                            self.hasError(typed.type, "Empty inline type", .{});
+                        }
+                    },
+                    .type_name => {
+                        // type is defined
+                        const name = typed.type.asTypeName();
+                        if (self.types.getPtr(name)) |type_ptr| {
+                            type_ptr.used = true;
+                        } else {
+                            self.hasError(typed.type, "Unknown type '{s}'", .{name});
+                        }
+                    },
+                    else => unreachable,
+                }
+
                 // todo - node
                 // todo -   map
                 // todo -     number of values <= number of keys
