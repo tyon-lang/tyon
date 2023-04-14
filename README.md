@@ -2,6 +2,61 @@
 
 AKA, can we be simpler and more compact than JSON without sacrificing readability.
 
+## Example.tyon
+
+```lisp
+; This is a TYON document
+
+title = "TYON Example" ; files are implicitly maps
+
+list = [1 2 3]
+
+map = (
+    first = John
+    last = Doe
+    age = 42
+    "favorite numbers" = [13 42]
+)
+
+; strings can contain any character except ", which is escaped as ""
+string = "hello, this is a string
+with some ""quoted text"" and
+multiple lines"
+
+; a type declaration specifies the keys for the type
+/person = (first last age)
+
+; a typed map matches the type keys to values in order
+owner = /person (Mary Sue 36) ; first = Mary, last = Sue, age = 36
+
+; a value of _ in a typed map means there is no corresponding value
+employee = /person (Other _ 25) ; first = Other, age = 25
+
+; lists can also be typed, with the type applying to the children
+typed-list = /person [
+    (John Doe 42)
+    (Mary Sue 36)
+]
+
+; types can be declared inline
+points = /(x y z) [
+    (1 2 3)
+    (4 5 6)
+    (7 8 9)
+]
+
+; types can be overridden
+people = /person [
+    (John Doe 42)
+    /(x y) (1 2)    ; type overridden by the inline type
+    /_ (            ; type overridden to be untyped
+        a = 1
+        b = 2
+        c = 3
+    )
+]
+```
+
 ---
 
 ## Motivations
@@ -49,6 +104,41 @@ points = /(x y z) [
 
 ---
 
+### Escaping Strings
+
+Strings can span multiple lines, and everything is literal except for `"` which is escaped as `""`
+
+<table>
+<tr>
+<th>JSON</th>
+<th>TYON</th>
+</tr>
+<tr>
+<td>
+
+```json
+"regex": "\\[[0-9]+\\]\\.[0-9]+",
+"multiline": "some\n\tindented\nmultiline \"quoted\"\ntext"
+```
+
+</td>
+<td>
+
+```lisp
+regex = "\[[0-9]+\]\.[0-9]+"
+multiline =
+"some
+    indented
+multiline ""quoted""
+text"
+```
+
+</td>
+</tr>
+</table>
+
+---
+
 ### Symbol Clutter
 
 TYON files are implicitly maps and do not require brackets.  
@@ -88,38 +178,9 @@ third = "hello world"
 
 ---
 
-### Escaping Strings
+### Decoupling Syntax and Data Formats
 
-Strings can span multiple lines and everything is literal except for `"` which is escaped as `""`
-
-<table>
-<tr>
-<th>JSON</th>
-<th>TYON</th>
-</tr>
-<tr>
-<td>
-
-```json
-"regex": "\\[[0-9]+\\]\\.[0-9]+",
-"multiline": "some\n\tindented\nmultiline \"quoted\"\ntext"
-```
-
-</td>
-<td>
-
-```lisp
-regex = "\[[0-9]+\]\.[0-9]+"
-multiline =
-"some
-    indented
-multiline ""quoted""
-text"
-```
-
-</td>
-</tr>
-</table>
+Recommended data formats for booleans, numbers, etc. are separate from the main specification, and are only made for easier interoperability between systems.
 
 ---
 
