@@ -63,7 +63,7 @@ pub const Validator = struct {
         var validator = init(alloc);
         defer validator.deinit();
 
-        try validator.validateNode(root);
+        try validator.validateNode(root, null);
 
         if (validator.has_error) {
             return error.Semantics;
@@ -86,9 +86,12 @@ pub const Validator = struct {
                 // unescape quotes
                 const str = key.asString();
                 const size = std.mem.replacementSize(u8, str, "\"\"", "\"");
-                const unescaped = try self.allocator.alloc(u8, size);
-                _ = std.mem.replace(u8, str, "\"\"", "\"", unescaped);
-                try self.strings.append(unescaped);
+                const unescaped = if (size == str.len) str else b: {
+                    const heap_chars = try self.allocator.alloc(u8, size);
+                    _ = std.mem.replace(u8, str, "\"\"", "\"", heap_chars);
+                    try self.strings.append(heap_chars);
+                    break :b heap_chars;
+                };
 
                 // keys are unique
                 if (keys.contains(unescaped)) {
@@ -101,7 +104,7 @@ pub const Validator = struct {
         }
     }
 
-    fn validateNode(self: *Validator, node: *Node) !void {
+    fn validateNode(self: *Validator, node: *Node, type_key_count: ?usize) !void {
         switch (node.getType()) {
             .file => {
                 var keys = std.StringHashMap(void).init(self.allocator);
@@ -116,7 +119,7 @@ pub const Validator = struct {
                                 try self.validateKey(&keys, key);
 
                                 // validate values
-                                try self.validateNode(value);
+                                try self.validateNode(value, type_key_count);
                             },
                             .type_name => {
                                 // type names are unique
@@ -165,35 +168,48 @@ pub const Validator = struct {
                 // validate items
                 var current = node.asList().first;
                 while (current) |cur| : (current = cur.next) {
-                    try self.validateNode(cur);
+                    try self.validateNode(cur, type_key_count);
                 }
             },
             .map => {
-                var keys = std.StringHashMap(void).init(self.allocator);
-                defer keys.deinit();
+                if (type_key_count) |key_count| {
+                    var val_count: usize = 0;
+                    var current = node.asMap().first;
+                    while (current) |cur| : (current = cur.next) {
+                        val_count += 1;
+                        try self.validateNode(cur, null);
+                    }
 
-                var current = node.asMap().first;
-                while (current) |key| {
-                    if (key.next) |value| {
-                        // keys are unique
-                        try self.validateKey(&keys, key);
+                    // number of values <= number of keys
+                    if (val_count > key_count) {
+                        self.hasError(node, "Typed map has more values than the type has keys", .{});
+                    }
+                } else {
+                    var keys = std.StringHashMap(void).init(self.allocator);
+                    defer keys.deinit();
 
-                        // validate values
-                        try self.validateNode(value);
+                    var current = node.asMap().first;
+                    while (current) |key| {
+                        if (key.next) |value| {
+                            // keys are unique
+                            try self.validateKey(&keys, key);
 
-                        current = value.next;
-                    } else {
-                        self.hasError(node, "Map has a mismatched number of keys and values", .{});
-                        current = key.next;
+                            // validate values
+                            try self.validateNode(value, null);
+
+                            current = value.next;
+                        } else {
+                            self.hasError(node, "Map has a mismatched number of keys and values", .{});
+                            current = key.next;
+                        }
                     }
                 }
             },
             .typed => {
                 const typed = node.asTyped();
+                var key_count: ?usize = null;
                 switch (typed.type.getType()) {
-                    .discard => {
-                        std.debug.print("discard type\n", .{});
-                    },
+                    .discard => {}, // do nothing, count is already null
                     .map => {
                         var keys = std.StringHashMap(void).init(self.allocator);
                         defer keys.deinit();
@@ -208,12 +224,15 @@ pub const Validator = struct {
                         if (keys.unmanaged.size < 1) {
                             self.hasError(typed.type, "Empty inline type", .{});
                         }
+
+                        key_count = keys.unmanaged.size;
                     },
                     .type_name => {
                         // type is defined
                         const name = typed.type.asTypeName();
                         if (self.types.getPtr(name)) |type_ptr| {
                             type_ptr.used = true;
+                            key_count = type_ptr.count;
                         } else {
                             self.hasError(typed.type, "Unknown type '{s}'", .{name});
                         }
@@ -221,9 +240,7 @@ pub const Validator = struct {
                     else => unreachable,
                 }
 
-                // todo - node
-                // todo -   map
-                // todo -     number of values <= number of keys
+                try self.validateNode(typed.node, key_count);
             },
             else => {},
         }
