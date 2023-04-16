@@ -1,4 +1,4 @@
-# TYON 1.0.0
+# TYON 1.0.0-rc.2
 
 Typed Object Notation
 
@@ -6,8 +6,8 @@ Typed Object Notation
 
 * TYON is case-sensitive.
 * A TYON file must be a valid UTF-8 encoded document.
-* Whitespace is `space` (0x20), `tab` (0x09), `CR` (0x0D), and `LF` (0x0A)
-* The `NULL` character is (0x00)
+* A TYON file must not contain the `NULL` character (0x00).
+* Whitespace is `space` (0x20), `tab` (0x09), `CR` (0x0D), and `LF` (0x0A).
 * The recommended file extension is `.tyon`
 
 ## File
@@ -84,7 +84,7 @@ A value is a [literal](#literal), [string](#string), [list](#list), or [map](#ma
 
 ## Literal
 
-A literal is a contiguous set of characters that are not [whitespace](#specifications), `NULL`, or any of `(` `)` `[` `]` `=` `;`  
+A literal is a contiguous set of characters that are not [whitespace](#specifications) or any of `(` `)` `[` `]` `=` `;`  
 A literal cannot start with `/` or `"`
 
 ```lisp
@@ -105,7 +105,7 @@ some(thing) ; invalid characters ( )
 
 ## String
 
-A string begins and ends with `"` and may contain any other characters. `"` is escaped as `""`
+A string begins and ends with `"` and may contain any characters other than `NULL` (0x00). `"` is escaped as `""`
 
 ```lisp
 simple = "simple string"
@@ -146,7 +146,7 @@ nested = /point [   ; nested is a list of type 'point'
         (7 8 9)
     ]
     (1 3 5)         ; implicitly untyped child map is of type 'point'
-    /(first last) [ ; type is overridden to an implicit type with keys 'first' and 'last'
+    /(first last) [ ; type is overridden to an inline type with keys 'first' and 'last'
         (John Doe)  ; implicitly untyped child maps use the inline parent type
         (Mary Sue)
     ]
@@ -192,3 +192,17 @@ points = /(x y) [
     (3 4)           ; x = 3, y = 4
 ]
 ```
+
+# Changelog
+
+## [1.0.0-rc.2] 2023-04-16
+
+### Added
+
+* Disallow the `NULL` character
+
+## [1.0.0-rc.1] 2023-04-13
+
+### Added
+
+* Initial version

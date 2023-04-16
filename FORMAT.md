@@ -1,4 +1,4 @@
-# TYON Recommended Data Formats 1.0.0
+# TYON Recommended Data Formats 1.0.0-rc.1
 
 The following are recommended data formats for interoperability between systems.  
 It is recommended to always treat strings as strings, and only interpret literals.
@@ -76,3 +76,18 @@ time-1 = 17:10:00-07:00               ; 17:10:00 UTC - 7
 time-2 = 00:10:00Z                    ; 00:10:00 UTC
 date-time = 2023-01-03T17:10:00-07:00 ; January 3, 2023 at 17:10:00 UTC - 7
 ```
+
+# Changelog
+
+## [1.0.0-rc.1] 2023-04-13
+
+### Added
+
+* boolean
+* null
+* numeric
+    * binary
+    * octal
+    * decimal
+    * hexadecimal
+* date and time

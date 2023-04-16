@@ -1,5 +1,9 @@
 # Typed Object Notation | [Specification](SPECIFICATION.md) | [Data Formats](FORMAT.md)
 
+![CLI Version](https://img.shields.io/badge/TYON%20CLI-0.3.0-brightgreen)
+![Spec Version](https://img.shields.io/badge/Spec-1.0.0--rc.2-blue)
+![Format Version](https://img.shields.io/badge/Format-1.0.0--rc.1-blue)
+
 AKA, can we be simpler and more compact than JSON without sacrificing readability.
 
 ## Example.tyon
