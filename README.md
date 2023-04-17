@@ -220,3 +220,9 @@ git clone https://github.com/defiant00/tyon
 cd tyon
 zig build -Doptimize=ReleaseSafe
 ```
+
+Or to disable error tracing for cleaner output, use the following build command:
+
+```
+zig build-exe --name tyon -O ReleaseSafe -fno-error-tracing src/main.zig
+```
