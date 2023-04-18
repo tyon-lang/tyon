@@ -6,39 +6,34 @@ const Parser = @import("parser.zig").Parser;
 const ToJson = @import("ToJson.zig");
 const Validator = @import("validator.zig").Validator;
 
-const version = std.SemanticVersion{ .major = 0, .minor = 3, .patch = 0 };
+const version = std.SemanticVersion{ .major = 0, .minor = 3, .patch = 1 };
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     var alloc = gpa.allocator();
 
-    var args = try std.process.argsWithAllocator(alloc);
-    defer args.deinit();
+    const args = try std.process.argsAlloc(alloc);
+    defer std.process.argsFree(alloc, args);
 
-    var arg_list = std.ArrayList([]const u8).init(alloc);
-    defer arg_list.deinit();
-
-    while (args.next()) |arg| try arg_list.append(arg);
-
-    if (arg_list.items.len >= 3 and std.mem.eql(u8, arg_list.items[1], "debug")) {
-        for (arg_list.items[2..]) |file| {
+    if (args.len >= 3 and std.mem.eql(u8, args[1], "debug")) {
+        for (args[2..]) |file| {
             try fileDebug(alloc, file);
         }
-    } else if (arg_list.items.len >= 3 and std.mem.eql(u8, arg_list.items[1], "format")) {
-        for (arg_list.items[2..]) |file| {
+    } else if (args.len >= 3 and std.mem.eql(u8, args[1], "format")) {
+        for (args[2..]) |file| {
             try fileFormat(alloc, file);
         }
-    } else if (arg_list.items.len >= 2 and std.mem.eql(u8, arg_list.items[1], "help")) {
+    } else if (args.len >= 2 and std.mem.eql(u8, args[1], "help")) {
         printUsage();
-    } else if (arg_list.items.len >= 3 and std.mem.eql(u8, arg_list.items[1], "to-json")) {
-        for (arg_list.items[2..]) |file| {
+    } else if (args.len >= 3 and std.mem.eql(u8, args[1], "to-json")) {
+        for (args[2..]) |file| {
             try fileToJson(alloc, file);
         }
-    } else if (arg_list.items.len >= 3 and std.mem.eql(u8, arg_list.items[1], "validate")) {
-        for (arg_list.items[2..]) |file| {
+    } else if (args.len >= 3 and std.mem.eql(u8, args[1], "validate")) {
+        for (args[2..]) |file| {
             try fileValidate(alloc, file);
         }
-    } else if (arg_list.items.len >= 2 and std.mem.eql(u8, arg_list.items[1], "version")) {
+    } else if (args.len >= 2 and std.mem.eql(u8, args[1], "version")) {
         std.debug.print("{}\n", .{version});
     } else {
         printUsage();
@@ -47,6 +42,8 @@ pub fn main() !void {
 }
 
 fn fileDebug(alloc: Allocator, path: []const u8) !void {
+    std.debug.print("{s}\n", .{path});
+
     var file = try std.fs.cwd().openFile(path, .{});
     defer file.close();
 
@@ -61,6 +58,8 @@ fn fileDebug(alloc: Allocator, path: []const u8) !void {
 }
 
 fn fileFormat(alloc: Allocator, path: []const u8) !void {
+    std.debug.print("{s}\n", .{path});
+
     var file = try std.fs.cwd().openFile(path, .{});
 
     const source = try file.readToEndAlloc(alloc, std.math.maxInt(usize));
@@ -83,6 +82,8 @@ fn fileFormat(alloc: Allocator, path: []const u8) !void {
 }
 
 fn fileToJson(alloc: Allocator, path: []const u8) !void {
+    std.debug.print("{s}\n", .{path});
+
     var file = try std.fs.cwd().openFile(path, .{});
     defer file.close();
 

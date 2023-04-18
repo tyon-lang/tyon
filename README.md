@@ -1,6 +1,6 @@
 # Typed Object Notation | [Specification](SPECIFICATION.md) | [Data Formats](FORMAT.md)
 
-![CLI Version](https://img.shields.io/badge/TYON%20CLI-0.3.0-brightgreen)
+![CLI Version](https://img.shields.io/badge/TYON%20CLI-0.3.1-brightgreen)
 ![Spec Version](https://img.shields.io/badge/Spec-1.0.0--rc.2-blue)
 ![Format Version](https://img.shields.io/badge/Formats-1.0.0--rc.1-blue)
 
