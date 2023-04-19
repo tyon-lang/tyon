@@ -216,7 +216,7 @@ The TYON CLI is implemented in [Zig](https://ziglang.org/), last compiled with 0
 You will need [a build of Zig master](https://ziglang.org/download/) to build the CLI.
 
 ```
-git clone https://github.com/defiant00/tyon
+git clone https://github.com/tyon-lang/tyon
 cd tyon
 zig build -Doptimize=ReleaseSafe
 ```
