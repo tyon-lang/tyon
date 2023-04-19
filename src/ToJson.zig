@@ -204,7 +204,6 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
                 switch (c) {
                     '"' => try self.writer.writeAll("\\\""),
                     '\\' => try self.writer.writeAll("\\\\"),
-                    '/' => try self.writer.writeAll("\\/"),
                     8 => try self.writer.writeAll("\\b"),
                     12 => try self.writer.writeAll("\\f"),
                     '\n' => try self.writer.writeAll("\\n"),
@@ -224,7 +223,6 @@ pub fn convert(allocator: Allocator, output_writer: anytype, root_node: *Node) !
                         try self.writer.writeAll("\\\"");
                     },
                     '\\' => try self.writer.writeAll("\\\\"),
-                    '/' => try self.writer.writeAll("\\/"),
                     8 => try self.writer.writeAll("\\b"),
                     12 => try self.writer.writeAll("\\f"),
                     '\n' => try self.writer.writeAll("\\n"),
