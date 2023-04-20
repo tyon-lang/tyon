@@ -1,6 +1,6 @@
 # Typed Object Notation | [Specification](SPECIFICATION.md) | [Data Formats](FORMAT.md)
 
-![CLI Version](https://img.shields.io/badge/TYON%20CLI-0.4.0-brightgreen)
+![CLI Version](https://img.shields.io/badge/TYON%20CLI-0.4.1-brightgreen)
 ![Spec Version](https://img.shields.io/badge/Spec-1.0.0--rc.2-blue)
 ![Format Version](https://img.shields.io/badge/Formats-1.0.0--rc.1-blue)
 
@@ -211,7 +211,7 @@ version             Print program version and exit.
 
 ### Building From Source
 
-The TYON CLI is implemented in [Zig](https://ziglang.org/), last compiled with 0.11.0-dev.2371+a31450375.
+The TYON CLI is implemented in [Zig](https://ziglang.org/), last compiled with 0.11.0-dev.2680+a1aa55ebe.
 
 You will need [a build of Zig master](https://ziglang.org/download/) to build the CLI.
 
