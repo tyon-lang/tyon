@@ -211,7 +211,7 @@ version             Print program version and exit.
 
 ### Building From Source
 
-The TYON CLI is implemented in [Zig](https://ziglang.org/), last compiled with 0.11.0-dev.2680+a1aa55ebe.
+The TYON CLI is implemented in [Zig](https://ziglang.org/), last compiled with 0.11.0-dev.2868+1a455b2dd.
 
 You will need [a build of Zig master](https://ziglang.org/download/) to build the CLI.
 
